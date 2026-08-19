@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Detritus Salud E.P.S.</title>
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ── TOPBAR ── -->
+  <div class="topbar">
+    <span>📍 Bogotá, D.C. &nbsp;|&nbsp; Lun–Vie 7am–7pm &nbsp;|&nbsp; Sáb 8am–2pm</span>
+    <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
+      <a href="#" onclick="irSupersalud()">Superintendencia de Salud</a>
+      <a href="#" onclick="irPQRS()">PQRS</a>
+      <a href="#" onclick="irTrabaja()">Trabaja con nosotros</a>
+      <span class="topbar__urgency">☎ Urgencias: 018000 123 456</span>
+    </div>
+  </div>
+
+  <!-- ── NAVBAR ── -->
+  <nav>
+    <a class="nav__logo" href="#" onclick="irInicio()">
+      <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#24518E,#4A80C4);display:flex;align-items:center;justify-content:center;font-size:1.5rem;">➕</div>
+      <div class="nav__brand">
+        Detritus Salud
+        <span>E.P.S.</span>
+      </div>
+    </a>
+    <ul class="nav__links">
+      <li><a href="#" onclick="irAfiliados()">Afiliados</a></li>
+      <li><a href="#" onclick="irServicios()">Servicios</a></li>
+      <li><a href="#" onclick="irRed()">Red de Atención</a></li>
+      <li><a href="#" onclick="irMedicamentos()">Medicamentos</a></li>
+      <li><a href="#" onclick="irNoticias()">Noticias</a></li>
+      <li><a href="#" onclick="irContacto()">Contáctenos</a></li>
+    </ul>
+    <div style="display:flex;gap:.6rem;">
+      <button class="btn btn--outline" onclick="abrirLogin()">Iniciar sesión</button>
+      <button class="btn btn--primary" onclick="irAfiliacion()">Afiliarme</button>
+    </div>
+  </nav>
+
+  <!-- ── HERO ── -->
+  <section class="hero">
+    <p class="hero__eyebrow">Tu salud, nuestra prioridad</p>
+    <h1>Cuidamos cada etapa de <em>tu vida</em> con calidad y compromiso</h1>
+    <p>Accede a más de 800 IPS aliadas, especialistas, medicamentos y servicios de salud en todo el territorio nacional.</p>
+    <div class="hero__ctas">
+      <button class="btn btn--primary" onclick="agendarCita()">📅 Agendar cita</button>
+      <button class="btn btn--outline" onclick="verAutorizacion()">📋 Consultar autorización</button>
+    </div>
+  </section>
+
+  <!-- ── ACCESOS RÁPIDOS ── -->
+  <section class="quick-access">
+    <h2 class="section-title">¿Qué necesitas hoy?</h2>
+    <div class="quick-grid">
+      <a class="quick-card" href="#" onclick="quickCita()">
+        <div class="quick-card__icon">📅</div>
+        <span class="quick-card__label">Agendar cita médica</span>
+      </a>
+      <a class="quick-card" href="#" onclick="quickLaboratorio()">
+        <div class="quick-card__icon">🔬</div>
+        <span class="quick-card__label">Resultados de laboratorio</span>
+      </a>
+      <a class="quick-card" href="#" onclick="quickMedicamentos()">
+        <div class="quick-card__icon">💊</div>
+        <span class="quick-card__label">Entrega de medicamentos</span>
+      </a>
+      <a class="quick-card" href="#" onclick="quickAutorizacion()">
+        <div class="quick-card__icon">✅</div>
+        <span class="quick-card__label">Solicitar autorización</span>
+      </a>
+      <a class="quick-card" href="#" onclick="quickCarne()">
+        <div class="quick-card__icon">🪪</div>
+        <span class="quick-card__label">Descargar carné digital</span>
+      </a>
+      <a class="quick-card" href="#" onclick="quickPQRS()">
+        <div class="quick-card__icon">📝</div>
+        <span class="quick-card__label">Radicar PQRS</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- ── BUSCADOR IPS ── -->
+  <section class="search-section">
+    <h2 class="section-title">Encuentra tu IPS o especialista</h2>
+    <div class="search-form">
+      <select onchange="filtrarCiudad(this.value)">
+        <option value="" disabled selected>🏙 Ciudad</option>
+        <option>Bogotá</option>
+        <option>Medellín</option>
+        <option>Cali</option>
+        <option>Barranquilla</option>
+        <option>Bucaramanga</option>
+      </select>
+      <select onchange="filtrarEspecialidad(this.value)">
+        <option value="" disabled selected>🩺 Especialidad</option>
+        <option>Medicina General</option>
+        <option>Cardiología</option>
+        <option>Pediatría</option>
+        <option>Ginecología</option>
+        <option>Ortopedia</option>
+        <option>Psicología</option>
+      </select>
+      <input id="search-input" type="text" placeholder="🔍 Nombre de la IPS o médico" />
+      <button class="btn btn--gold" onclick="buscarIPS()">Buscar</button>
+    </div>
+  </section>
+
+  <!-- ── ESTADÍSTICAS ── -->
+  <div class="stats-strip">
+    <div class="stat"><span class="stat__num">800+</span><div class="stat__label">IPS aliadas en Colombia</div></div>
+    <div class="stat"><span class="stat__num">1.2M</span><div class="stat__label">Afiliados activos</div></div>
+    <div class="stat"><span class="stat__num">32</span><div class="stat__label">Departamentos con cobertura</div></div>
+    <div class="stat"><span class="stat__num">24/7</span><div class="stat__label">Atención de urgencias</div></div>
+  </div>
+
+  <!-- ── PORTAL DEL AFILIADO ── -->
+  <section class="portal-section">
+    <div class="portal-inner">
+      <div class="portal-copy">
+        <h2>Portal del Afiliado</h2>
+        <p>Agenda citas, consulta autorizaciones, descarga tu carné y revisa resultados desde un solo lugar.</p>
+        <button class="btn btn--outline" onclick="irRegistro()">Crear cuenta gratis</button>
+      </div>
+      <div class="portal-form">
+        <div class="form-group">
+          <label for="doc">Número de documento</label>
+          <input type="text" id="doc" placeholder="Ej. 1020304050" />
+        </div>
+        <div class="form-group">
+          <label for="pass">Contraseña</label>
+          <input type="password" id="pass" placeholder="••••••••" />
+        </div>
+        <button class="btn btn--primary" onclick="iniciarSesion()">Ingresar al portal</button>
+        <div class="portal-form__footer">
+          <a href="#" onclick="olvideClave()">¿Olvidaste tu contraseña?</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── NOTICIAS ── -->
+  <section class="news-section">
+    <h2 class="section-title">Salud e información</h2>
+    <div class="news-grid">
+      <div class="news-card" onclick="verNoticiaVacunacion()">
+        <div class="news-card__img">💉</div>
+        <div class="news-card__body">
+          <div class="news-card__tag">Campaña</div>
+          <div class="news-card__title">Jornada de vacunación contra la influenza — ¿Dónde vacunarte?</div>
+          <div class="news-card__meta">18 ago 2026 · 3 min lectura</div>
+        </div>
+      </div>
+      <div class="news-card" onclick="verNoticiaSaludMental()">
+        <div class="news-card__img">🧠</div>
+        <div class="news-card__body">
+          <div class="news-card__tag">Bienestar</div>
+          <div class="news-card__title">Cuida tu salud mental: recursos y líneas de apoyo disponibles</div>
+          <div class="news-card__meta">15 ago 2026 · 5 min lectura</div>
+        </div>
+      </div>
+      <div class="news-card" onclick="verNoticiaApp()">
+        <div class="news-card__img">📱</div>
+        <div class="news-card__body">
+          <div class="news-card__tag">Novedades</div>
+          <div class="news-card__title">Ya disponible la nueva app Detritus Salud con telemedicina integrada</div>
+          <div class="news-card__meta">10 ago 2026 · 2 min lectura</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FOOTER ── -->
+  <footer>
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <div style="font-family:'Merriweather',serif;font-size:1.1rem;color:#fff;">Detritus Salud <span style="color:#D4AB4F;">E.P.S.</span></div>
+        <p>Comprometidos con la salud integral de los colombianos. Vigilados por la Superintendencia Nacional de Salud.</p>
+        <div style="display:flex;gap:.75rem;margin-top:.25rem;">
+          <button class="btn btn--outline" style="border-color:rgba(255,255,255,.3);color:rgba(255,255,255,.7);font-size:.8rem;padding:.4rem .8rem;" onclick="irFacebook()">Facebook</button>
+          <button class="btn btn--outline" style="border-color:rgba(255,255,255,.3);color:rgba(255,255,255,.7);font-size:.8rem;padding:.4rem .8rem;" onclick="irInstagram()">Instagram</button>
+          <button class="btn btn--outline" style="border-color:rgba(255,255,255,.3);color:rgba(255,255,255,.7);font-size:.8rem;padding:.4rem .8rem;" onclick="irTwitter()">X / Twitter</button>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4>Servicios</h4>
+        <ul>
+          <li><a href="#" onclick="quickCita()">Citas médicas</a></li>
+          <li><a href="#" onclick="quickAutorizacion()">Autorizaciones</a></li>
+          <li><a href="#" onclick="quickMedicamentos()">Medicamentos</a></li>
+          <li><a href="#" onclick="irContacto()">Urgencias</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Afiliados</h4>
+        <ul>
+          <li><a href="#" onclick="irAfiliacion()">Cómo afiliarme</a></li>
+          <li><a href="#" onclick="irAfiliados()">Traslado de EPS</a></li>
+          <li><a href="#" onclick="quickCarne()">Carné digital</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Institución</h4>
+        <ul>
+          <li><a href="#" onclick="irContacto()">Quiénes somos</a></li>
+          <li><a href="#" onclick="irPQRS()">PQRS</a></li>
+          <li><a href="#" onclick="irTrabaja()">Trabaja con nosotros</a></li>
+          <li><a href="#" onclick="irPrivacidad()">Política de privacidad</a></li>
+          <li><a href="#" onclick="irTerminos()">Términos y condiciones</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      © 2026 Detritus Salud E.P.S. · NIT 900.000.000-0 · Vigilado Supersalud &nbsp;|&nbsp;
+      <a href="#" onclick="irPrivacidad()" style="color:rgba(255,255,255,.45);text-decoration:none;">Privacidad</a> &nbsp;|&nbsp;
+      <a href="#" onclick="irTerminos()" style="color:rgba(255,255,255,.45);text-decoration:none;">Términos</a>
+    </div>
+  </footer>
+
+  <!-- ── CHAT FLOTANTE ── -->
+  <button class="chat-fab" onclick="abrirChat()" title="Asistente virtual">
+    💬
+    <span class="chat-fab__badge">1</span>
+  </button>
+
+  <script src="main.js"></script>
+</body>
+</html>
