@@ -1,31 +1,36 @@
 # Detritus Salud E.P.S. — React + Vite
 
+Sitio web institucional de Detritus Salud E.P.S., construido con React, Vite y React Router.
+
 ## Cómo correr el proyecto
 
 ```bash
-cd detritus-react
-npm install        # Solo la primera vez (descarga React, Vite, etc.)
+npm install        # Instala React, Vite y las dependencias del proyecto
 npm run dev        # Abre en http://localhost:5173
 ```
 
-## Logo
-Guarda tu logo como: `public/logo.png`
+El comando debe ejecutarse desde la carpeta raíz del proyecto, donde están `package.json` e `index.html`.
 
-## Imágenes de subpáginas
-Guarda las imágenes en: `public/img/`
-Ejemplo: `public/img/copagos.jpg`
+## Logo
+El logo principal se encuentra en `public/logo.png`.
+
+## Imágenes
+Las imágenes de las páginas se encuentran en `public/img/`.
+Para agregar una nueva imagen, guárdala allí y úsala desde React con una ruta como `/img/nombre-de-imagen.jpg`.
 
 ## Estructura
 ```
 src/
-├── components/    ← Navbar, Footer, ChatFab, PageHero, InfoCard, StepList, Alert
-├── pages/         ← Home, Afiliados (12), Tramites (10), Atencion (1), Nosotros (6)
-├── styles/        ← global.css (variables y reset)
-├── App.jsx        ← Todas las rutas (React Router)
-└── main.jsx       ← Punto de entrada
+├── components/    # Navbar, Footer, ChatFab, PageHero, InfoCard, StepList, Alert
+├── pages/         # Home, Afiliados, Trámites, Atención y Nosotros
+├── styles/        # global.css: variables y estilos base
+├── App.jsx        # Rutas de la aplicación con React Router
+└── main.jsx       # Punto de entrada
 ```
 
 ## Build para producción
 ```bash
 npm run build      # Genera carpeta dist/ lista para desplegar
 ```
+
+La carpeta `dist/` se genera automáticamente y no debe subirse al repositorio.
