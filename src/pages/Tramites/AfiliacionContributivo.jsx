@@ -18,9 +18,10 @@ export default function AfiliacionContributivo() {
           { label: 'Afiliación régimen contributivo' }
         ]}
       />
-      <section className="content-section">
+      <section className="tramite-content">
         <div className="container">
-          <div className="info-grid"><InfoCard icon="👔" title="Dependiente" text="Tu empleador realiza el proceso." /><InfoCard icon="🧾" title="Independiente" text="Necesitas RUT vigente y declarar tu IBC." /></div><Alert type="gold">Cotización: 12.5% del IBC. Empleador paga 8.5%, trabajador 4%.</Alert>
+          <div className="tramite-content__header"><span className="section-label">Afiliación contributiva</span><h2 className="section-heading">Elige la ruta que corresponde a tu trabajo</h2><p className="tramite-content__intro">Conoce los documentos y responsabilidades según seas trabajador dependiente o independiente.</p></div>
+          <div className="tramite-grid"><div className="tramite-card"><h3>Trabajador dependiente</h3><p>Tu empleador gestiona la afiliación y realiza los aportes correspondientes.</p><ul><li>Documento de identidad</li><li>Contrato o certificación laboral</li><li>Formulario de afiliación</li></ul></div><div className="tramite-card"><h3>Trabajador independiente</h3><p>Realizas tus aportes directamente sobre tu ingreso base de cotización.</p><ul><li>Documento de identidad</li><li>RUT vigente</li><li>Declaración del IBC</li></ul></div></div><Alert type="gold">La cotización corresponde al 12,5% del IBC. Verifica los valores vigentes antes de realizar el trámite.</Alert>
         </div>
       </section>
     </>

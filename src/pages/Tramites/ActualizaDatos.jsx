@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import PageHero from '../../components/PageHero/PageHero';
 import InfoCard from '../../components/InfoCard/InfoCard';
 import StepList from '../../components/StepList/StepList';
@@ -5,6 +6,8 @@ import Alert from '../../components/Alert/Alert';
 import './ActualizaDatos.css';
 
 export default function ActualizaDatos() {
+  const [status, setStatus] = useState('');
+  const handleSubmit = (event) => { event.preventDefault(); setStatus('Información validada. La actualización está lista para conectarse al sistema de afiliados.'); };
   return (
     <>
       <PageHero
@@ -18,15 +21,10 @@ export default function ActualizaDatos() {
           { label: 'Actualiza tus datos' }
         ]}
       />
-      <section className="content-section">
+      <section className="tramite-content">
         <div className="container">
-          <div className="info-card" style={{maxWidth:600,padding:'1.5rem'}}>
-            <h3 style={{fontFamily:'var(--font-display)',color:'var(--navy)',marginBottom:'1.25rem'}}>Actualización de datos</h3>
-            <div className="form-row"><div className="form-group"><label>Nombre completo</label><input type="text" placeholder="Tu nombre" /></div><div className="form-group"><label>Documento</label><input type="text" placeholder="1020304050" /></div></div>
-            <div className="form-row"><div className="form-group"><label>Teléfono</label><input type="tel" placeholder="3001234567" /></div><div className="form-group"><label>Email</label><input type="email" placeholder="correo@ejemplo.com" /></div></div>
-            <div className="form-group"><label>Dirección</label><input type="text" placeholder="Calle, número, barrio" /></div>
-            <button className="btn btn--primary">Guardar cambios</button>
-          </div>
+          <div className="tramite-content__header"><span className="section-label">Información del afiliado</span><h2 className="section-heading">Mantén tus datos al día</h2><p className="tramite-content__intro">Actualiza tus datos de contacto para recibir notificaciones, certificados y confirmaciones sin inconvenientes.</p></div>
+          <form className="info-card tramite-form" onSubmit={handleSubmit}><h2>Actualización de datos</h2><p className="tramite-form__intro">Completa únicamente la información que deseas actualizar.</p><div className="form-row"><div className="form-group"><label htmlFor="update-name">Nombre completo</label><input id="update-name" type="text" placeholder="Tu nombre" required /></div><div className="form-group"><label htmlFor="update-document">Documento</label><input id="update-document" type="text" placeholder="1020304050" required /></div></div><div className="form-row"><div className="form-group"><label htmlFor="update-phone">Teléfono</label><input id="update-phone" type="tel" placeholder="3001234567" required /></div><div className="form-group"><label htmlFor="update-email">Correo electrónico</label><input id="update-email" type="email" placeholder="correo@ejemplo.com" required /></div></div><div className="form-group"><label htmlFor="update-address">Dirección</label><input id="update-address" type="text" placeholder="Calle, número, barrio" required /></div><button className="btn btn--primary" type="submit">Guardar cambios</button>{status && <p className="form-status" role="status">{status}</p>}</form>
         </div>
       </section>
     </>
