@@ -29,9 +29,15 @@
 @media(max-width:960px){.navbar__links{display:none}.navbar__actions .btn--ghost{display:none}}
 @media(max-width:640px){
   .navbar__hamburger{display:flex}.navbar__actions{display:none}.topbar__info{display:none}
-  .navbar__links.open{display:flex;flex-direction:column;align-items:flex-start;position:absolute;top:68px;left:0;right:0;height:auto;background:var(--white);border-top:1px solid var(--border);box-shadow:0 8px 24px rgba(27,58,107,.12);padding:1rem 1.5rem 1.5rem;z-index:999;gap:0}
+  .navbar__links.open{display:flex;flex-direction:column;align-items:flex-start;position:absolute;top:68px;left:0;right:0;height:auto;max-height:calc(100vh - 68px);overflow-y:auto;background:var(--white);border-top:3px solid var(--gold);box-shadow:0 12px 28px rgba(27,58,107,.16);padding:.65rem 1.25rem 1.25rem;z-index:999;gap:0}
   .navbar__links.open .nav-item{height:auto;width:100%;flex-direction:column;align-items:flex-start}
-  .navbar__links.open .nav-link{width:100%;padding:.6rem 0;border-bottom:1px solid var(--border)}
-  .navbar__links.open .nav-dropdown{position:static;opacity:1;pointer-events:all;transform:none;box-shadow:none;border:none;border-left:2px solid var(--gold);padding-left:1rem;margin:.25rem 0 .5rem;min-width:auto;width:100%;display:none}
+  .navbar__links.open .nav-link{width:100%;min-height:48px;padding:.75rem .7rem;border-bottom:1px solid var(--border);border-radius:var(--radius-sm);color:var(--navy);font-size:.9rem}
+  .navbar__links.open .nav-link:hover,.navbar__links.open .nav-link.active{background:var(--surface-2);border-bottom-color:var(--gold);color:var(--navy)}
+  .navbar__links.open .nav-item--has-drop .nav-link{justify-content:space-between}
+  .navbar__links.open .drop-open .nav-chevron{transform:rotate(180deg);color:var(--gold)}
+  .navbar__links.open .nav-dropdown{position:static;opacity:1;pointer-events:all;transform:none;box-shadow:none;border:1px solid var(--border);border-left:3px solid var(--gold);border-radius:var(--radius-sm);padding:.25rem 0;margin:.35rem 0 .55rem .7rem;min-width:auto;width:calc(100% - .7rem);display:none;background:var(--surface)}
   .navbar__links.open .drop-open .nav-dropdown{display:block}
+  .navbar__links.open .nav-dropdown__item{font-size:.82rem;padding:.65rem 1rem;border-bottom:1px solid var(--border);color:var(--text-muted)}
+  .navbar__links.open .nav-dropdown__item:last-child{border-bottom:none}
+  .navbar__links.open .nav-dropdown__item:hover{background:var(--white);color:var(--navy)}
 }
