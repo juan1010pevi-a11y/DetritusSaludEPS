@@ -57,8 +57,8 @@ export default function Copagos() {
             <table>
               <thead><tr><th>Servicio</th><th>Hasta 2 SMMLV</th><th>2 – 5 SMMLV</th><th>Mayor a 5 SMMLV</th></tr></thead>
               <tbody>
-                <tr><td><strong>🩺 Consulta general</strong></td><td>$3.900</td><td>$9.500</td><td>$18.500</td></tr>
-                <tr><td><strong>👨‍⚕️ Consulta especializada</strong></td><td>$6.400</td><td>$15.900</td><td>$31.200</td></tr>
+                <tr><td><strong>Consulta general</strong></td><td>$3.900</td><td>$9.500</td><td>$18.500</td></tr>
+                <tr><td><strong>Consulta especializada</strong></td><td>$6.400</td><td>$15.900</td><td>$31.200</td></tr>
                 <tr><td><strong><LineIcon name="ambulance" /> Urgencias</strong></td><td>$18.500</td><td>$37.000</td><td>$55.500</td></tr>
                 <tr><td><strong><LineIcon name="hospital" /> Hospitalización / día</strong></td><td>$30.900</td><td>$61.800</td><td>$92.700</td></tr>
                 <tr><td><strong><LineIcon name="pill" /> Medicamentos</strong></td><td colSpan="3" style={{textAlign:'center',color:'var(--gold)',fontWeight:600}}>Sin costo con fórmula médica PBS</td></tr>
@@ -67,7 +67,7 @@ export default function Copagos() {
             </table>
           </div>
           <div className="copagos-note">
-            <div className="copagos-note__item"><strong>⚠️ Exentos de copago:</strong> Menores de 1 año · Programas de control prenatal · Enfermedades de alto costo · Atención inicial de urgencias</div>
+            <div className="copagos-note__item"><strong>Exentos de copago:</strong> Menores de 1 año · Programas de control prenatal · Enfermedades de alto costo · Atención inicial de urgencias</div>
           </div>
         </div>
       </section>

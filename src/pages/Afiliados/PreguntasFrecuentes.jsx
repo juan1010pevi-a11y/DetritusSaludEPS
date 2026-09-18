@@ -18,9 +18,10 @@ export default function PreguntasFrecuentes() {
           { label: 'Preguntas frecuentes' }
         ]}
       />
-      <section className="content-section">
+      <section className="affiliate-content">
         <div className="container">
-          <StepList steps={[{num:"?",title:"¿Cómo solicito una autorización?",text:"Ingresa al portal, selecciona Solicitar autorización y sigue el proceso."},{num:"?",title:"¿Cuánto tarda una autorización?",text:"Urgencias: 30 min. Electivas: 5 días hábiles."},{num:"?",title:"¿Puedo cambiar de IPS?",text:"Sí, una vez al año por el portal o puntos de atención."},{num:"?",title:"¿Cómo agrego un beneficiario?",text:"Cédula del titular + registro civil del beneficiario en punto de atención."}]} />
+          <div className="affiliate-content__header"><div><span className="section-label">Centro de ayuda</span><h2 className="section-heading">Respuestas rápidas para ti</h2><p className="affiliate-content__intro">Encuentra orientación sobre los trámites y servicios más consultados por nuestros afiliados.</p></div></div>
+          <div className="affiliate-content__stack"><div className="affiliate-content__card"><h3>¿Cómo solicito una autorización?</h3><p>Ingresa al portal, selecciona la opción de autorizaciones y sigue los pasos indicados.</p></div><div className="affiliate-content__card"><h3>¿Cuánto tarda una autorización?</h3><p>Las urgencias se gestionan con prioridad. Las solicitudes electivas pueden tardar hasta 5 días hábiles.</p></div><div className="affiliate-content__card"><h3>¿Puedo cambiar de IPS?</h3><p>Sí. Solicítalo una vez al año por el portal o en un punto de atención.</p></div><div className="affiliate-content__card"><h3>¿Cómo agrego un beneficiario?</h3><p>Presenta la cédula del titular y el registro civil del beneficiario en un punto de atención.</p></div></div>
         </div>
       </section>
     </>
