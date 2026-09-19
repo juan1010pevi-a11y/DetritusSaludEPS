@@ -1,0 +1,76 @@
+services:
+  frontend:
+    build: .
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:4000/api
+    depends_on:
+      - gateway
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: detritus
+      RABBITMQ_DEFAULT_PASS: detritus
+
+  auth:
+    build: ./backend
+    command: node src/auth-service.js
+    environment:
+      AUTH_SECRET: change-this-in-production
+
+  users:
+    build: ./backend
+    command: node src/users-service.js
+
+  content:
+    build: ./backend
+    command: node src/content-service.js
+
+  notifications:
+    build: ./backend
+    command: node src/notifications-service.js
+    environment:
+      RABBITMQ_URL: amqp://detritus:detritus@rabbitmq:5672
+    depends_on:
+      - rabbitmq
+
+  healthcare:
+    build: ./backend
+    command: node src/healthcare-service.js
+    environment:
+      RABBITMQ_URL: amqp://detritus:detritus@rabbitmq:5672
+    depends_on:
+      - rabbitmq
+
+  pqrs:
+    build: ./backend
+    command: node src/pqrs-service.js
+    environment:
+      RABBITMQ_URL: amqp://detritus:detritus@rabbitmq:5672
+    depends_on:
+      - rabbitmq
+
+  gateway:
+    build: ./backend
+    command: node src/gateway.js
+    ports:
+      - "4000:4000"
+    environment:
+      AUTH_HOST: auth
+      USERS_HOST: users
+      CONTENT_HOST: content
+      NOTIFICATIONS_HOST: notifications
+      HEALTHCARE_HOST: healthcare
+      PQRS_HOST: pqrs
+    depends_on:
+      - auth
+      - users
+      - content
+      - notifications
+      - healthcare
+      - pqrs

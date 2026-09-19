@@ -1,0 +1,11 @@
+.content-section { padding: 4rem 0; }
+.content-section .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-top: 2rem; }
+.job-form { max-width: 760px; padding: 1.75rem; margin-top: 1.5rem; }
+.job-form h3 { font-family: var(--font-display); color: var(--navy); margin: 0 0 .45rem; }
+.job-form__intro { color: var(--text-muted); margin: 0 0 1.4rem; }
+.file-help, .file-name { display: block; font-size: .78rem; margin-top: .35rem; }
+.file-help { color: var(--text-muted); }
+.file-name { color: var(--navy); font-weight: 600; }
+.consent { display: flex; gap: .55rem; align-items: flex-start; color: var(--text-main); font-size: .82rem; margin: .25rem 0 1.25rem; }
+.consent input { margin-top: .15rem; accent-color: var(--navy); }
+.form-status { color: var(--navy); font-size: .85rem; font-weight: 600; margin: 1rem 0 0; }
