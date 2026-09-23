@@ -1,0 +1,107 @@
+services:
+  frontend:
+    build: .
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:4000/api
+    depends_on:
+      - gateway
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: detritus
+      RABBITMQ_DEFAULT_PASS: detritus
+
+  auth:
+    build: ./backend
+    command: node src/auth-service.js
+    volumes:
+      - detritus-data:/app/data
+    environment:
+      AUTH_SECRET: change-this-in-production
+
+  users:
+    build: ./backend
+    command: node src/users-service.js
+    volumes:
+      - detritus-data:/app/data
+
+  content:
+    build: ./backend
+    command: node src/content-service.js
+    volumes:
+      - detritus-data:/app/data
+
+  notifications:
+    build: ./backend
+    command: node src/notifications-service.js
+    environment:
+      RABBITMQ_URL: amqp://detritus:detritus@rabbitmq:5672
+      NOTIFICATIONS_MODE: ${NOTIFICATIONS_MODE:-mock}
+      NOTIFICATIONS_CHANNEL: ${NOTIFICATIONS_CHANNEL:-email}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      MAIL_FROM: ${MAIL_FROM:-notificaciones@example.com}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-}
+      TWILIO_WHATSAPP_FROM: ${TWILIO_WHATSAPP_FROM:-}
+    volumes:
+      - detritus-data:/app/data
+    depends_on:
+      - rabbitmq
+
+  healthcare:
+    build: ./backend
+    command: node src/healthcare-service.js
+    environment:
+      RABBITMQ_URL: amqp://detritus:detritus@rabbitmq:5672
+    volumes:
+      - detritus-data:/app/data
+    depends_on:
+      - rabbitmq
+
+  pqrs:
+    build: ./backend
+    command: node src/pqrs-service.js
+    environment:
+      RABBITMQ_URL: amqp://detritus:detritus@rabbitmq:5672
+    volumes:
+      - detritus-data:/app/data
+    depends_on:
+      - rabbitmq
+
+  meds-labs:
+    build: ./backend
+    command: node src/meds-labs-service.js
+    volumes:
+      - detritus-data:/app/data
+
+  gateway:
+    build: ./backend
+    command: node src/gateway.js
+    ports:
+      - "4000:4000"
+    environment:
+      AUTH_HOST: auth
+      USERS_HOST: users
+      CONTENT_HOST: content
+      NOTIFICATIONS_HOST: notifications
+      HEALTHCARE_HOST: healthcare
+      PQRS_HOST: pqrs
+      MEDS_LABS_HOST: meds-labs
+    depends_on:
+      - auth
+      - users
+      - content
+      - notifications
+      - healthcare
+      - pqrs
+      - meds-labs
+
+volumes:
+  detritus-data:

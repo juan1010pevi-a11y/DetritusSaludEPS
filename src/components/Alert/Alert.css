@@ -1,0 +1,4 @@
+.alert{border-radius:var(--radius-sm);padding:1rem 1.25rem;font-size:.88rem;line-height:1.6;margin:1.5rem 0;border-left:4px solid}
+.alert--info{background:#EEF2F8;border-color:var(--navy-mid);color:var(--navy)}
+.alert--gold{background:#FDF6E7;border-color:var(--gold);color:#7A5A10}
+.alert--urgent{background:#FDECEA;border-color:var(--urgent);color:#922B21}

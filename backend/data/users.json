@@ -1,0 +1,11 @@
+[
+  {
+    "id": "user-001",
+    "name": "Afiliado demo",
+    "document": "123456789",
+    "password": "demo123",
+    "role": "affiliate",
+    "status": "active",
+    "plan": "Régimen contributivo"
+  }
+]

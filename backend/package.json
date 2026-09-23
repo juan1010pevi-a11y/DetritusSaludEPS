@@ -1,0 +1,19 @@
+{
+  "name": "detritus-salud-services",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "gateway": "node src/gateway.js",
+    "auth": "node src/auth-service.js",
+    "users": "node src/users-service.js",
+    "content": "node src/content-service.js",
+    "notifications": "node src/notifications-service.js",
+    "healthcare": "node src/healthcare-service.js",
+    "pqrs": "node src/pqrs-service.js",
+    "meds-labs": "node src/meds-labs-service.js"
+  },
+  "dependencies": {
+    "amqplib": "^2.0.1",
+    "sql.js": "^1.14.2"
+  }
+}

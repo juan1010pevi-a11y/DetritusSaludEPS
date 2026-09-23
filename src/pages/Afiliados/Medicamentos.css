@@ -1,0 +1,38 @@
+
+.med-hero { background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%); color: var(--white); padding: 3.5rem 0 3rem; }
+.med-hero .breadcrumb { color: rgba(255,255,255,.5); } .med-hero .breadcrumb a { color: rgba(255,255,255,.7); }
+.med-hero h1 { font-family: var(--font-display); font-size: clamp(2rem, 3vw, 2.8rem); font-weight: 600; margin-bottom: .75rem; }
+.med-hero p { color: rgba(255,255,255,.75); max-width: 540px; line-height: 1.7; }
+
+.med-features { padding: 5rem 0; background: var(--white); }
+.med-split { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }
+.med-split__img { border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-lg); }
+.med-split__img img { width: 100%; height: 380px; object-fit: cover; }
+.med-feature { display: flex; gap: 1rem; margin-top: 1.5rem; align-items: flex-start; }
+.med-feature__num { width: 36px; height: 36px; border-radius: 50%; background: var(--gold); color: #fff; font-size: .85rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.med-feature h4 { font-size: .95rem; font-weight: 600; color: var(--navy); margin-bottom: .25rem; }
+.med-feature p { font-size: .85rem; color: var(--text-muted); line-height: 1.6; }
+@media (max-width: 768px) { .med-split { grid-template-columns: 1fr; } .med-split__img img { height: 240px; } }
+
+.med-lookup { padding: 4rem 0; background: var(--surface-2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.med-lookup__layout { display: grid; grid-template-columns: .9fr 1.1fr; gap: 3rem; align-items: center; }
+.med-lookup__copy p { color: var(--text-muted); font-size: .9rem; line-height: 1.6; max-width: 430px; }
+.med-lookup__form { background: var(--white); border: 1.5px solid var(--border); border-radius: var(--radius-md); padding: 1.5rem; box-shadow: var(--shadow-sm); }
+.med-lookup__form .form-row { margin-bottom: .25rem; }
+.med-lookup__form .form-group { margin-bottom: 1rem; }
+.med-lookup__form .btn { margin-top: .25rem; }
+.form-status { color: var(--navy); font-size: .85rem; font-weight: 600; margin: 1rem 0 0; }
+.med-result{position:relative;display:grid;grid-template-columns:1.2fr 1.4fr 1.2fr;gap:1rem;margin-top:1rem;padding:1rem;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface)}
+.med-result>div{display:flex;flex-direction:column;gap:.25rem}.med-result strong,.med-result span{font-size:.8rem;color:var(--navy)}.med-result__label{font-size:.65rem!important;color:var(--text-muted)!important;text-transform:uppercase;letter-spacing:.08em;font-weight:700}.med-result__status{position:absolute;right:.75rem;top:.7rem;padding:.25rem .5rem;border-radius:999px;background:#e4f5ec;color:#21734a!important;font-size:.65rem!important;font-weight:700}.med-result__status--pending{background:#fff4d9;color:#8a6412!important}@media(max-width:600px){.med-result{grid-template-columns:1fr;padding-top:2.5rem}}
+@media (max-width: 768px) { .med-lookup__layout { grid-template-columns: 1fr; gap: 1.5rem; } }
+
+.med-services { padding: 4rem 0; background: var(--surface); }
+.med-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+.med-card { background: var(--white); border: 1.5px solid var(--border); border-radius: var(--radius-md); padding: 2rem 1.5rem; text-align: center; position: relative; transition: transform .2s, box-shadow .2s; }
+.med-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+.med-card--highlight { border-color: var(--gold); background: linear-gradient(180deg, #fffef5 0%, var(--white) 100%); }
+.med-card__icon { font-size: 2.5rem; color: var(--navy-mid); display: flex; justify-content: center; margin-bottom: 1rem; }
+.med-card h3 { font-family: var(--font-display); font-size: 1rem; color: var(--navy); margin-bottom: .5rem; }
+.med-card p { font-size: .85rem; color: var(--text-muted); line-height: 1.6; }
+.med-card__tag { position: absolute; top: 1rem; right: 1rem; background: var(--gold); color: #fff; font-size: .65rem; font-weight: 700; padding: .2rem .6rem; border-radius: var(--radius-pill); text-transform: uppercase; letter-spacing: .08em; }
+@media (max-width: 768px) { .med-cards { grid-template-columns: 1fr; } }
