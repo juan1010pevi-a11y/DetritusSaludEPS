@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import LineIcon from '../../components/LineIcon/LineIcon';
-import { getDashboardSummary, getNews, getStaffOverview, login, register } from '../../services/api';
+import { getDashboardSummary, getNews, getRoleUsers, getStaffOverview, login, register, updateUserRoles } from '../../services/api';
 import './Home.css';
 
 const quickLinks = [
@@ -45,6 +45,8 @@ function roleLabel(value) {
   return { affiliate: 'Afiliado', doctor: 'Médico', administrator: 'Administrador' }[value] || value;
 }
 
+const availableRoles = ['affiliate', 'doctor', 'administrator'];
+
 export default function Home() {
   const [news, setNews] = useState([]);
   const [loginState, setLoginState] = useState({ status: 'idle', message: '' });
@@ -59,6 +61,8 @@ export default function Home() {
   });
   const [dashboard, setDashboard] = useState({ appointments: [], pqrs: [], authorizations: [] });
   const [staffOverview, setStaffOverview] = useState(null);
+  const [roleUsers, setRoleUsers] = useState([]);
+  const [rolesState, setRolesState] = useState({ status: 'idle', message: '' });
 
   useEffect(() => {
     getNews().then(data => setNews(data.items || [])).catch(() => {});
@@ -69,6 +73,16 @@ export default function Home() {
     getDashboardSummary(session.user.id)
       .then(data => setDashboard(data))
       .catch(() => setDashboard({ appointments: [], pqrs: [], authorizations: [] }));
+  }, [session]);
+
+  useEffect(() => {
+    if (session?.user?.role !== 'administrator') {
+      setRoleUsers([]);
+      return;
+    }
+    getRoleUsers().then(data => setRoleUsers(data.items || [])).catch(() => {
+      setRolesState({ status: 'error', message: 'No fue posible cargar los usuarios.' });
+    });
   }, [session]);
 
   useEffect(() => {
@@ -100,6 +114,30 @@ export default function Home() {
     localStorage.removeItem('session');
     setSession(null);
     setLoginState({ status: 'idle', message: '' });
+  };
+
+  const toggleRole = (userId, role) => {
+    setRoleUsers(users => users.map(user => {
+      if (user.id !== userId) return user;
+      const roles = user.roles.includes(role)
+        ? user.roles.filter(item => item !== role)
+        : [...user.roles, role];
+      return { ...user, roles };
+    }));
+  };
+
+  const handleRoleSave = async user => {
+    if (!user.roles.length) {
+      setRolesState({ status: 'error', message: 'Cada usuario debe conservar al menos un rol.' });
+      return;
+    }
+    setRolesState({ status: 'loading', message: '' });
+    try {
+      await updateUserRoles(user.id, user.roles);
+      setRolesState({ status: 'success', message: `Roles actualizados para ${user.name}.` });
+    } catch {
+      setRolesState({ status: 'error', message: 'No fue posible guardar los roles.' });
+    }
   };
 
   const handleRegister = async event => {
@@ -301,6 +339,44 @@ export default function Home() {
                 <Link to="/tramites/radicar-pqrsd" className="btn btn--ghost portal__action-btn">Radicar PQRS</Link>
                 <Link to="/tramites/autorizaciones" className="btn btn--ghost portal__action-btn">Autorizaciones</Link>
               </div>
+
+              {session.user.role === 'administrator' && (
+                <section className="portal__roles-panel" aria-labelledby="roles-title">
+                  <div className="portal__detail-heading">
+                    <div>
+                      <span className="portal__mini-label">Administración</span>
+                      <h3 id="roles-title">Perfiles de acceso</h3>
+                    </div>
+                  </div>
+                  <p className="portal__roles-help">Una persona puede tener varios perfiles sin duplicar su documento.</p>
+                  <div className="portal__roles-list">
+                    {roleUsers.map(user => (
+                      <article className="portal__role-item" key={user.id}>
+                        <div className="portal__role-user">
+                          <strong>{user.name}</strong>
+                          <span>{user.document} · {user.status}</span>
+                        </div>
+                        <div className="portal__role-options">
+                          {availableRoles.map(role => (
+                            <label key={role}>
+                              <input
+                                type="checkbox"
+                                checked={user.roles.includes(role)}
+                                onChange={() => toggleRole(user.id, role)}
+                              />
+                              {roleLabel(role)}
+                            </label>
+                          ))}
+                        </div>
+                        <button className="btn btn--ghost portal__role-save" type="button" onClick={() => handleRoleSave(user)}>
+                          Guardar roles
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                  {rolesState.message && <p className="portal__message" role="status">{rolesState.message}</p>}
+                </section>
+              )}
 
               <button className="portal__logout" type="button" onClick={handleLogout}>Cerrar sesión</button>
             </div>

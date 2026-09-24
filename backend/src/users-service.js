@@ -1,6 +1,35 @@
+import crypto from 'node:crypto';
 import { startService, json, readJson } from './service.js';
 import { execute, initDatabase, queryOne, queryRows, refreshDatabase } from './database.js';
 import { hashPassword } from './security.js';
+
+const tokenSecret = process.env.AUTH_SECRET || 'detritus-academic-secret';
+const availableRoles = ['affiliate', 'doctor', 'administrator'];
+
+function getAuthenticatedUser(req) {
+  const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
+  if (!token) return null;
+  const [payload, signature] = token.split('.');
+  if (!payload || !signature) return null;
+  const expectedSignature = crypto.createHmac('sha256', tokenSecret).update(payload).digest('base64url');
+  if (signature.length !== expectedSignature.length) return null;
+  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) return null;
+  try {
+    const user = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    return user.exp > Date.now() ? user : null;
+  } catch {
+    return null;
+  }
+}
+
+function requireAdministrator(req, res) {
+  const user = getAuthenticatedUser(req);
+  if (!user || user.role !== 'administrator') {
+    json(res, 403, { error: 'Se requiere un perfil administrador' });
+    return null;
+  }
+  return user;
+}
 
 await initDatabase();
 
@@ -35,11 +64,15 @@ startService({
         refreshDatabase();
         const value = url.searchParams.get('affiliateId') || url.searchParams.get('document');
         const profile = queryOne(
-          `SELECT a.affiliate_id AS id, a.name, a.document, a.role, a.status,
+          `SELECT a.affiliate_id AS id, a.name, a.document,
+                  COALESCE(GROUP_CONCAT(ur.role), a.role) AS roles,
+                  a.role, a.status,
                   p.name AS plan, a.created_at AS createdAt
            FROM dim_affiliates a
            JOIN dim_plans p ON p.plan_id = a.plan_id
-           WHERE a.affiliate_id = ? OR a.document = ?`,
+           LEFT JOIN user_roles ur ON ur.user_id = a.affiliate_id
+           WHERE a.affiliate_id = ? OR a.document = ?
+           GROUP BY a.affiliate_id`,
           [value, value],
         );
         if (!profile) return json(res, 404, { error: 'Afiliado no encontrado' });
@@ -67,12 +100,49 @@ startService({
         refreshDatabase();
         const counts = queryOne(`
           SELECT
-            (SELECT COUNT(*) FROM dim_affiliates WHERE role = 'affiliate') AS affiliates,
+            (SELECT COUNT(*) FROM user_roles WHERE role = 'affiliate') AS affiliates,
             (SELECT COUNT(*) FROM fact_appointments WHERE status IN ('requested', 'confirmed')) AS activeAppointments,
             (SELECT COUNT(*) FROM fact_authorizations WHERE status IN ('requested', 'approved')) AS pendingAuthorizations,
             (SELECT COUNT(*) FROM fact_pqrs WHERE status NOT IN ('closed', 'answered')) AS openPqrs
         `);
         return json(res, 200, { items: counts });
+      },
+    },
+    {
+      method: 'GET',
+      path: '/staff/users',
+      handler: (req, res) => {
+        if (!requireAdministrator(req, res)) return;
+        refreshDatabase();
+        const users = queryRows(`
+          SELECT a.affiliate_id AS id, a.name, a.document, a.email, a.status,
+                 COALESCE(GROUP_CONCAT(ur.role), a.role) AS roles
+          FROM dim_affiliates a
+          LEFT JOIN user_roles ur ON ur.user_id = a.affiliate_id
+          GROUP BY a.affiliate_id
+          ORDER BY a.name COLLATE NOCASE
+        `).map(user => ({ ...user, roles: user.roles ? user.roles.split(',') : [] }));
+        return json(res, 200, { items: users, availableRoles });
+      },
+    },
+    {
+      method: 'PUT',
+      path: '/staff/roles',
+      handler: async (req, res) => {
+        if (!requireAdministrator(req, res)) return;
+        const data = await readJson(req);
+        const userId = String(data.userId || '').trim();
+        const roles = [...new Set(Array.isArray(data.roles) ? data.roles : [])];
+        if (!userId || !roles.length || roles.some(role => !availableRoles.includes(role))) {
+          return json(res, 400, { error: 'Usuario y al menos un rol válido son obligatorios' });
+        }
+        refreshDatabase();
+        const user = queryOne('SELECT affiliate_id FROM dim_affiliates WHERE affiliate_id = ?', [userId]);
+        if (!user) return json(res, 404, { error: 'Usuario no encontrado' });
+        execute('DELETE FROM user_roles WHERE user_id = ?', [userId]);
+        roles.forEach(role => execute('INSERT INTO user_roles (user_id, role) VALUES (?, ?)', [userId, role]));
+        execute('UPDATE dim_affiliates SET role = ? WHERE affiliate_id = ?', [roles[0], userId]);
+        return json(res, 200, { updated: true, userId, roles });
       },
     },
     {
@@ -104,6 +174,7 @@ startService({
            VALUES (?, ?, ?, ?, ?, ?, 'affiliate', 'active', ?)`,
           [affiliateId, name, document, hashedPassword, email, phone, plan.plan_id],
         );
+        execute('INSERT OR IGNORE INTO user_roles (user_id, role) VALUES (?, ?)', [affiliateId, 'affiliate']);
         return json(res, 201, { id: affiliateId, name, document, status: 'active', plan: planName });
       },
     },

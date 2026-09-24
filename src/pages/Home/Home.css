@@ -78,13 +78,20 @@
 .portal__empty-detail{font-size:.78rem;line-height:1.5;color:var(--text-muted);padding:.7rem 0 .2rem}
 .portal__actions{display:flex;flex-wrap:wrap;gap:.75rem;margin:1.25rem 0 .5rem}
 .portal__action-btn{padding:.8rem 1.1rem}
+.portal__roles-panel{margin-top:1.5rem;padding:1.15rem;background:rgba(255,255,255,.78);border:1px solid var(--border);border-radius:var(--radius-md)}
+.portal__roles-help{font-size:.78rem;color:var(--text-muted);margin:-.45rem 0 1rem;line-height:1.5}
+.portal__roles-list{display:flex;flex-direction:column;gap:.65rem}
+.portal__role-item{display:grid;grid-template-columns:minmax(150px,1fr) auto auto;align-items:center;gap:1rem;padding:.8rem;background:var(--white);border:1px solid var(--border);border-radius:var(--radius-sm)}
+.portal__role-user{display:flex;flex-direction:column;gap:.2rem;min-width:0}.portal__role-user strong{font-size:.82rem;color:var(--navy);overflow-wrap:anywhere}.portal__role-user span{font-size:.7rem;color:var(--text-muted);overflow-wrap:anywhere}
+.portal__role-options{display:flex;flex-wrap:wrap;gap:.65rem}.portal__role-options label{display:flex;align-items:center;gap:.3rem;font-size:.72rem;color:var(--navy-mid);white-space:nowrap}.portal__role-options input{accent-color:var(--navy-mid)}
+.portal__role-save{padding:.45rem .65rem;font-size:.7rem;white-space:nowrap}
 .portal__logout{background:transparent;border:none;color:var(--navy-mid);font-weight:600;padding:0;margin-top:.5rem;cursor:pointer}
 .portal__form{background:var(--white);border-radius:var(--radius-lg);padding:2.25rem 2rem;box-shadow:var(--shadow-lg);border-top:5px solid var(--navy-mid);transform:translateY(-4px)}
 .portal__form h3{font-family:var(--font-display);font-size:1.35rem;color:var(--navy);margin-bottom:1.75rem}
 .portal__recover{font-size:.75rem;font-weight:400;color:var(--navy-mid)}
 .portal__submit{width:100%;justify-content:center;padding:.8rem;border-radius:var(--radius-sm);margin-top:.5rem;font-size:.95rem}
 .portal__footer{text-align:center;font-size:.78rem;color:var(--text-muted);margin-top:1rem}.portal__footer a{color:var(--navy-mid);font-weight:500}
-@media(max-width:520px){.portal__register-form .compact-row{grid-template-columns:1fr}.portal__form{padding:1.5rem 1.1rem}.portal__dashboard{padding:1.5rem 1.1rem}.portal__row,.portal__staff-overview{grid-template-columns:1fr}.portal__status-list,.portal__details{grid-template-columns:1fr}.portal__actions{flex-direction:column}.portal__action-btn{width:100%;justify-content:center}}@media(max-width:780px){.portal__inner{grid-template-columns:1fr;gap:2.5rem}.portal__form{padding:1.75rem 1.25rem}.portal__register-panel{padding:1rem .9rem}.portal__submit{margin-top:.2rem}}@media(max-width:520px){.portal__register-panel h3{font-size:1rem}.portal__form h3{font-size:1.1rem}.portal__features{font-size:.82rem}}
+@media(max-width:520px){.portal__register-form .compact-row{grid-template-columns:1fr}.portal__form{padding:1.5rem 1.1rem}.portal__dashboard{padding:1.5rem 1.1rem}.portal__row,.portal__staff-overview{grid-template-columns:1fr}.portal__status-list,.portal__details{grid-template-columns:1fr}.portal__actions{flex-direction:column}.portal__action-btn{width:100%;justify-content:center}.portal__role-item{grid-template-columns:1fr}.portal__role-save{width:100%}}@media(max-width:780px){.portal__inner{grid-template-columns:1fr;gap:2.5rem}.portal__form{padding:1.75rem 1.25rem}.portal__register-panel{padding:1rem .9rem}.portal__submit{margin-top:.2rem}}@media(max-width:520px){.portal__register-panel h3{font-size:1rem}.portal__form h3{font-size:1.1rem}.portal__features{font-size:.82rem}}
 .news{background:var(--white);padding:5rem 0}
 .news__header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:2.5rem;flex-wrap:wrap;gap:1rem}
 .news-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:1.25rem}

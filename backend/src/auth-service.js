@@ -29,8 +29,10 @@ startService({
         const { document, password, role } = await readJson(req);
         refreshDatabase();
         const user = queryOne(
-          `SELECT affiliate_id AS id, name, role, password, status
-           FROM dim_affiliates WHERE document = ? AND (? IS NULL OR role = ?)`,
+          `SELECT a.affiliate_id AS id, a.name, ur.role, a.password, a.status
+           FROM dim_affiliates a
+           JOIN user_roles ur ON ur.user_id = a.affiliate_id
+           WHERE a.document = ? AND (? IS NULL OR ur.role = ?)`,
           [document, role || null, role || null],
         );
         if (!user || !verifyPassword(password, user.password) || user.status !== 'active') {

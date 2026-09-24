@@ -28,12 +28,29 @@ export async function initDatabase() {
 
   database.exec(fs.readFileSync(schemaPath, 'utf8'));
   ensureAffiliateContactColumns();
+  ensureUserRoleTables();
   ensureContentImageColumn();
   ensureMedsLabsTables();
   seedDatabase();
   persistDatabase();
   console.log(`SQLite conectada: ${databasePath}`);
   return database;
+}
+
+function ensureUserRoleTables() {
+  database.run(`
+    CREATE TABLE IF NOT EXISTS user_roles (
+      user_id TEXT NOT NULL,
+      role TEXT NOT NULL CHECK (role IN ('affiliate', 'doctor', 'administrator')),
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (user_id, role),
+      FOREIGN KEY (user_id) REFERENCES dim_affiliates(affiliate_id)
+    )
+  `);
+  database.run(`
+    INSERT OR IGNORE INTO user_roles (user_id, role)
+    SELECT affiliate_id, role FROM dim_affiliates
+  `);
 }
 
 function ensureContentImageColumn() {
@@ -123,6 +140,10 @@ function seedDatabase() {
       [id, name, document, password, role, 'Régimen contributivo'],
     );
   }
+  database.run(`
+    INSERT OR IGNORE INTO user_roles (user_id, role)
+    SELECT affiliate_id, role FROM dim_affiliates
+  `);
   database.run(
     `UPDATE dim_affiliates SET email = ?, phone = ? WHERE affiliate_id = ?`,
     ['afiliado.demo@example.com', '+573001234567', 'user-001'],

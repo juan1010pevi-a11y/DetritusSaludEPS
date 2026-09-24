@@ -21,6 +21,14 @@ CREATE TABLE IF NOT EXISTS dim_affiliates (
   FOREIGN KEY (plan_id) REFERENCES dim_plans(plan_id)
 );
 
+CREATE TABLE IF NOT EXISTS user_roles (
+  user_id TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('affiliate', 'doctor', 'administrator')),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, role),
+  FOREIGN KEY (user_id) REFERENCES dim_affiliates(affiliate_id)
+);
+
 CREATE TABLE IF NOT EXISTS dim_services (
   service_id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL UNIQUE,

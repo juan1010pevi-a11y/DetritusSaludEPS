@@ -1,8 +1,9 @@
 const API_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:4000/api`;
 
 async function request(path, options = {}) {
+  const token = localStorage.getItem('token');
   const response = await fetch(`${API_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
     ...options,
   });
 
@@ -45,6 +46,13 @@ export const createPqrs = data => request('/pqrs/requests', {
 export const getProfile = value => request(`/users/profile?document=${encodeURIComponent(value)}`);
 
 export const getStaffOverview = () => request('/users/staff/overview');
+
+export const getRoleUsers = () => request('/users/staff/users');
+
+export const updateUserRoles = (userId, roles) => request('/users/staff/roles', {
+  method: 'PUT',
+  body: JSON.stringify({ userId, roles }),
+});
 
 export const updateProfile = data => request('/users/profile', {
   method: 'PATCH',

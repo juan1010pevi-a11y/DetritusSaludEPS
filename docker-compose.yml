@@ -28,6 +28,8 @@ services:
   users:
     build: ./backend
     command: node src/users-service.js
+    environment:
+      AUTH_SECRET: change-this-in-production
     volumes:
       - detritus-data:/app/data
 

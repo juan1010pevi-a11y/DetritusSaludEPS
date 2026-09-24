@@ -17,6 +17,10 @@ RabbitMQ está definido en `docker-compose.yml` como broker de mensajes para not
 
 La persistencia del backend usa SQLite mediante `sql.js`. El esquema se encuentra en [backend/data/schema.sql](backend/data/schema.sql), se inicializa al arrancar y queda persistido en el volumen Docker `detritus-data`. La llave foránea común entre los microservicios es `affiliate_id`, que conecta las tablas de citas, autorizaciones, PQRS y notificaciones con la dimensión de afiliados.
 
+La identidad se mantiene una sola vez: `document` identifica a la persona y `affiliate_id` identifica su cuenta dentro de la EPS. Los perfiles de acceso se relacionan en `user_roles` con la llave compuesta `(user_id, role)`. Por eso una persona puede ser `affiliate` y `doctor` a la vez sin duplicar la cédula ni agregar sufijos; las tablas clínicas siguen usando `affiliate_id` como llave foránea.
+
+Para ver las tablas en VS Code, abre `backend/data/detritus.sqlite` desde la extensión SQLite instalada y selecciona la opción para abrir la base de datos. El archivo local se crea o actualiza al iniciar un servicio del backend. Cuando uses Docker, la base vive en el volumen `detritus-data`, por lo que debes inspeccionar el archivo local o exportar/copiar la base del contenedor antes de abrirla en VS Code.
+
 El comando debe ejecutarse desde la carpeta raíz del proyecto, donde están `package.json` e `index.html`.
 
 ## Logo
