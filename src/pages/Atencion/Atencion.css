@@ -1,0 +1,33 @@
+
+.atencion-hero { background: linear-gradient(140deg, var(--navy) 0%, var(--navy-mid) 60%, var(--sky) 100%); color: var(--white); padding: 5rem 0 4rem; overflow: hidden; }
+.atencion-hero__inner { display: grid; grid-template-columns: 1fr 400px; align-items: center; gap: 3rem; }
+.atencion-hero h1 { font-family: var(--font-display); font-size: clamp(2.2rem, 4vw, 3.2rem); font-weight: 600; line-height: 1.15; margin-bottom: 1rem; }
+.atencion-hero em { font-style: normal; color: var(--gold-light); }
+.atencion-hero p { color: rgba(255,255,255,.75); line-height: 1.7; max-width: 440px; margin-bottom: 2rem; }
+.atencion-hero__emergency { display: flex; gap: 1rem; align-items: center; background: rgba(192,57,43,.2); border: 1px solid rgba(192,57,43,.4); border-radius: var(--radius-md); padding: 1rem 1.25rem; }
+.atencion-hero__emergency-icon { font-size: 1.8rem; color: #ff8a80; }
+.atencion-hero__emergency strong { display: block; color: #ff8a80; font-size: .88rem; }
+.atencion-hero__emergency span { font-size: .8rem; color: rgba(255,255,255,.7); }
+.atencion-hero__img { border-radius: var(--radius-lg); overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
+.atencion-hero__img img { width: 100%; height: 340px; object-fit: cover; }
+@media (max-width: 860px) { .atencion-hero__inner { grid-template-columns: 1fr; text-align: center; } .atencion-hero__img { order: -1; } .atencion-hero__img img { height: 220px; } .atencion-hero__emergency { justify-content: center; text-align: left; } .atencion-hero p { margin-inline: auto; } }
+
+.atencion-channels { padding: 5rem 0; background: var(--white); }
+.channel-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-top: 2.5rem; }
+.channel-card { background: var(--bg); border-radius: var(--radius-lg); padding: 2rem; border: 1.5px solid var(--border); transition: transform .2s, box-shadow .2s; }
+.channel-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+.channel-card__icon { font-size: 2.2rem; color: var(--navy-mid); margin-bottom: .75rem; }
+.channel-card h3 { font-family: var(--font-display); font-size: 1.05rem; color: var(--navy); margin-bottom: .5rem; }
+.channel-card__main { font-size: 1rem; font-weight: 600; color: var(--navy-mid); margin-bottom: .25rem; }
+.channel-card__sub { font-size: .82rem; color: var(--text-muted); margin-bottom: .5rem; }
+.channel-card__hours { font-size: .78rem; color: var(--text-muted); }
+@media (max-width: 640px) { .channel-grid { grid-template-columns: 1fr; } }
+
+.atencion-hours { padding: 4rem 0; background: var(--surface); }
+.hours-banner { display: flex; justify-content: center; align-items: flex-start; gap: 3rem; background: var(--white); border-radius: var(--radius-lg); padding: 3rem; box-shadow: var(--shadow-md); }
+.hours-col { text-align: center; flex: 1; }
+.hours-icon { font-size: 2rem; color: var(--navy-mid); display: flex; justify-content: center; margin-bottom: .75rem; }
+.hours-col h3 { font-family: var(--font-display); font-size: .95rem; color: var(--navy); margin-bottom: .5rem; }
+.hours-col p { font-size: .85rem; color: var(--text-muted); line-height: 1.7; }
+.hours-divider { width: 1px; background: var(--border); align-self: stretch; }
+@media (max-width: 640px) { .hours-banner { flex-direction: column; gap: 2rem; } .hours-divider { width: 100%; height: 1px; } }

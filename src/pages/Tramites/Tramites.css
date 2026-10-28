@@ -1,0 +1,23 @@
+
+.tr-hero { background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%); color: var(--white); padding: 5rem 0 4rem; }
+.tr-hero__inner { display: grid; grid-template-columns: 1fr 380px; align-items: center; gap: 3rem; }
+.tr-hero h1 { font-family: var(--font-display); font-size: clamp(2.2rem, 4vw, 3.2rem); font-weight: 600; line-height: 1.15; margin-bottom: 1rem; }
+.tr-hero em { font-style: normal; color: var(--gold-light); }
+.tr-hero p { color: rgba(255,255,255,.75); line-height: 1.7; }
+.tr-hero__img { border-radius: var(--radius-lg); overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
+.tr-hero__img img { width: 100%; height: 300px; object-fit: cover; }
+@media (max-width: 860px) { .tr-hero__inner { grid-template-columns: 1fr; text-align: center; } .tr-hero__img { order: -1; } .tr-hero__img img { height: 200px; } }
+
+.tr-grid-section { padding: 4rem 0; background: var(--white); }
+.tr-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+.tr-card { display: flex; flex-direction: column; padding: 1.75rem; background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-md); color: var(--text-main); transition: all .2s; position: relative; overflow: hidden; min-height: 180px; }
+.tr-card:hover { border-color: var(--navy-mid); box-shadow: var(--shadow-md); transform: translateY(-4px); background: var(--white); }
+.tr-card__num { position: absolute; top: .75rem; right: 1rem; font-family: var(--font-display); font-size: 2rem; font-weight: 600; color: var(--border); line-height: 1; }
+.tr-card:hover .tr-card__num { color: var(--gold-light); }
+.tr-card__icon { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 50%; color: var(--gold-light); background: linear-gradient(145deg, var(--navy-mid), var(--navy)); box-shadow: 0 5px 14px rgba(27,58,107,.18); margin-bottom: .9rem; transition: background .2s, transform .2s; }
+.tr-card:hover .tr-card__icon { color: var(--white); background: linear-gradient(145deg, var(--gold), var(--gold-light)); transform: scale(1.05); }
+.tr-card__svg { width: 23px; height: 23px; }
+.tr-card h3 { font-family: var(--font-display); font-size: .95rem; color: var(--navy); margin-bottom: .4rem; }
+.tr-card p { font-size: .82rem; color: var(--text-muted); line-height: 1.5; }
+@media (max-width: 768px) { .tr-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 480px) { .tr-grid { grid-template-columns: 1fr; } }

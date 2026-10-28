@@ -1,0 +1,9 @@
+.password-field{position:relative;display:block}
+.password-field input{padding-right:2.8rem!important}
+.password-field__toggle{position:absolute;top:50%;right:.45rem;transform:translateY(-50%);display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border:none;border-radius:var(--radius-sm);background:transparent;color:var(--text-muted)}
+.password-field__toggle:hover,.password-field__toggle:focus-visible{color:var(--navy-mid);background:var(--surface-2);outline:none}
+.password-field__toggle svg{width:18px;height:18px}
+.password-hints{display:flex;flex-wrap:wrap;gap:.25rem .9rem;margin-top:.4rem;font-size:.74rem;color:var(--text-muted)}
+.password-hints li.is-ok{color:var(--role-affiliate,#1E7F5C);font-weight:600}
+input:user-invalid{border-color:rgba(192,57,43,.6)!important}
+.field-hint{display:block;margin-top:.3rem;font-size:.74rem;color:var(--text-muted)}

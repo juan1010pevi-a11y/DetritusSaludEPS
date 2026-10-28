@@ -1,0 +1,5 @@
+.doc-alert{margin-top:.9rem;background:var(--role-affiliate-soft);color:#155C43;border-radius:var(--radius-sm);padding:.75rem 1rem;font-size:.85rem;line-height:1.5}
+.doc-alert--denied{background:#F8E3E1;color:#922B21}
+.certificate__title{text-align:center;letter-spacing:.2em;margin-top:1.6rem}
+.certificate__body{line-height:1.8;margin:1rem 0;text-align:justify}
+.certificate .lab-report__meta{grid-template-columns:repeat(3,1fr)}

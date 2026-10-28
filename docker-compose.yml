@@ -1,0 +1,116 @@
+# Arquitectura completa: frontend, API Gateway, 7 microservicios, RabbitMQ.
+# Patrón "Database per Service": cada microservicio monta SU PROPIO volumen con SU PROPIA base SQLite.
+x-service: &service
+  build: ./backend
+  restart: unless-stopped
+  environment: &service-env
+    AUTH_SECRET: ${AUTH_SECRET:-change-this-in-production}
+    INTERNAL_KEY: ${INTERNAL_KEY:-change-this-internal-key}
+    RABBITMQ_URL: amqp://detritus:detritus@rabbitmq:5672
+    DATA_DIR: /app/data/db
+    AUTH_HOST: auth
+    USERS_HOST: users
+    CONTENT_HOST: content
+    NOTIFICATIONS_HOST: notifications
+    HEALTHCARE_HOST: healthcare
+    PQRS_HOST: pqrs
+    MEDS_LABS_HOST: meds-labs
+  depends_on:
+    - rabbitmq
+
+services:
+  frontend:
+    build: .
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:4000/api
+    depends_on:
+      - gateway
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: detritus
+      RABBITMQ_DEFAULT_PASS: detritus
+
+  auth:
+    <<: *service
+    command: node src/auth-service.js
+    volumes:
+      - auth-db:/app/data/db
+
+  users:
+    <<: *service
+    command: node src/users-service.js
+    volumes:
+      - users-db:/app/data/db
+
+  content:
+    <<: *service
+    command: node src/content-service.js
+    volumes:
+      - content-db:/app/data/db
+
+  notifications:
+    <<: *service
+    command: node src/notifications-service.js
+    environment:
+      <<: *service-env
+      NOTIFICATIONS_MODE: ${NOTIFICATIONS_MODE:-mock}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-}
+      TWILIO_WHATSAPP_FROM: ${TWILIO_WHATSAPP_FROM:-}
+    volumes:
+      - notifications-db:/app/data/db
+
+  healthcare:
+    <<: *service
+    command: node src/healthcare-service.js
+    volumes:
+      - healthcare-db:/app/data/db
+
+  pqrs:
+    <<: *service
+    command: node src/pqrs-service.js
+    volumes:
+      - pqrs-db:/app/data/db
+
+  meds-labs:
+    <<: *service
+    command: node src/meds-labs-service.js
+    volumes:
+      - meds-labs-db:/app/data/db
+
+  gateway:
+    <<: *service
+    command: node src/gateway.js
+    ports:
+      - "4000:4000"
+    depends_on:
+      - auth
+      - users
+      - content
+      - notifications
+      - healthcare
+      - pqrs
+      - meds-labs
+
+volumes:
+  auth-db:
+  users-db:
+  content-db:
+  notifications-db:
+  healthcare-db:
+  pqrs-db:
+  meds-labs-db:
