@@ -1,3 +1,4 @@
+import './env.js'; // primero: credenciales de backend/.env
 import { startService, json, readJson, HttpError } from './service.js';
 import { createDatabase } from './database.js';
 import { hashPassword, verifyPassword } from './security.js';

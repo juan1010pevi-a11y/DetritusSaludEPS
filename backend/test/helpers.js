@@ -21,6 +21,7 @@ export async function startBackend({ basePort = 5600, fakeNow = '2026-11-02T06:0
     DATA_DIR: dataDir,
     RABBITMQ_DISABLED: '1',
     NOTIFICATIONS_MODE: 'mock',
+    DETRITUS_SKIP_ENV_FILE: '1',
     FAKE_NOW: fakeNow,
     AUTH_SECRET: 'test-secret',
   };

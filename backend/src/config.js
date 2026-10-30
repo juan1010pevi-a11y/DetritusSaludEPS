@@ -1,3 +1,4 @@
+import './env.js'; // credenciales de backend/.env antes de leer cualquier variable
 // Puertos y hosts de cada microservicio. Se pueden cambiar con variables de entorno
 // (por ejemplo, en docker-compose cada servicio tiene su propio host y en las pruebas
 // automáticas se usa BASE_PORT para no chocar con el backend de desarrollo).

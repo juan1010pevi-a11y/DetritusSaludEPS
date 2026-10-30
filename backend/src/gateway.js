@@ -1,3 +1,4 @@
+import './env.js'; // primero: credenciales de backend/.env
 import http from 'node:http';
 import { GATEWAY_PORT, SERVICES } from './config.js';
 

@@ -52,8 +52,14 @@ Detalle de cada servicio, cuentas de prueba y flujos en [backend/README.md](back
 
 Cada proceso (citas, reasignaciones por incapacidad, autorizaciones, fórmulas, resultados de laboratorio, PQRS, recuperación de contraseña) publica un evento. Notifications Service lo recibe por RabbitMQ o, si RabbitMQ no está corriendo, por HTTP, y envía el mensaje por **correo, SMS y WhatsApp** a los datos de contacto del usuario.
 
-- **Modo demostración (por defecto):** no sale nada a internet; los mensajes quedan en *Portal → Notificaciones* marcados como “Simulado”.
-- **Envío real:** copia `backend/.env.example` como `backend/.env`, pon `NOTIFICATIONS_MODE=live` y las credenciales (Gmail con contraseña de aplicación para el correo; Twilio para SMS y WhatsApp). `npm start` lee ese archivo automáticamente.
+- **Sin credenciales:** los mensajes quedan en *Portal → Notificaciones* marcados como “Simulado” (no salen a internet).
+- **Envío real al correo y WhatsApp registrados al crear la cuenta:**
+  1. Copia `backend/.env.example` como `backend/.env`.
+  2. Correo: pon tu Gmail en `SMTP_USER` / `MAIL_FROM` y una **contraseña de aplicación** en `SMTP_PASS` (https://myaccount.google.com/apppasswords; requiere verificación en dos pasos).
+  3. WhatsApp: crea una cuenta gratuita de Twilio, copia `TWILIO_ACCOUNT_SID` y `TWILIO_AUTH_TOKEN`, y desde cada celular que vaya a recibir mensajes envía por WhatsApp `join <código>` al +1 415 523 8886 (sandbox).
+  4. Prueba las credenciales: `cd backend && npm run probar-notificaciones -- tu.correo@gmail.com 3001234567`.
+  5. Reinicia el backend (`npm start` o `docker compose up --build`). Al arrancar, `notifications-service` imprime si está en modo LIVE y qué canal falta. También se ve en `http://localhost:4000/api/health`.
+- Si un envío falla, el motivo exacto (contraseña de Gmail incorrecta, número sin unirse al sandbox, etc.) aparece en *Portal → Notificaciones* al pasar el mouse por el canal.
 
 ## Pruebas automáticas (GitHub Actions)
 

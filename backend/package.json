@@ -12,7 +12,8 @@
     "notifications": "node src/notifications-service.js",
     "healthcare": "node src/healthcare-service.js",
     "pqrs": "node src/pqrs-service.js",
-    "meds-labs": "node src/meds-labs-service.js"
+    "meds-labs": "node src/meds-labs-service.js",
+    "probar-notificaciones": "node src/test-notify.js"
   },
   "dependencies": {
     "amqplib": "^2.0.1",

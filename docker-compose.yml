@@ -58,19 +58,10 @@ services:
   notifications:
     <<: *service
     command: node src/notifications-service.js
-    environment:
-      <<: *service-env
-      NOTIFICATIONS_MODE: ${NOTIFICATIONS_MODE:-mock}
-      SMTP_HOST: ${SMTP_HOST:-}
-      SMTP_PORT: ${SMTP_PORT:-465}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASS: ${SMTP_PASS:-}
-      MAIL_FROM: ${MAIL_FROM:-}
-      RESEND_API_KEY: ${RESEND_API_KEY:-}
-      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
-      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
-      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-}
-      TWILIO_WHATSAPP_FROM: ${TWILIO_WHATSAPP_FROM:-}
+    # Credenciales de correo y WhatsApp: el mismo backend/.env que usa "npm start".
+    env_file:
+      - path: ./backend/.env
+        required: false
     volumes:
       - notifications-db:/app/data/db
 

@@ -1,3 +1,4 @@
+import './env.js'; // primero: credenciales de backend/.env
 import { startService, json, readJson } from './service.js';
 import { createDatabase } from './database.js';
 import { publishEvent } from './broker.js';

@@ -1,8 +1,10 @@
+import './env.js'; // primero: credenciales de backend/.env
 import crypto from 'node:crypto';
 import { startService, json, readJson } from './service.js';
 import { consumeEvents, getBrokerStatus } from './broker.js';
 import { createDatabase } from './database.js';
-import { configuredChannels, deliverNotification, getNotificationMode } from './notification-providers.js';
+import { channelProblems, configuredChannels, deliverNotification, getNotificationMode } from './notification-providers.js';
+import { loadedEnvFiles } from './env.js';
 import { renderNotification } from './notification-templates.js';
 import { requireRole } from './auth.js';
 import { peopleById, requireInternal, resolvePerson } from './internal.js';
@@ -66,6 +68,17 @@ export async function processEvent(event) {
 
 consumeEvents(processEvent);
 
+// Al arrancar se dice claramente si los mensajes saldrán de verdad y qué canal falta configurar.
+{
+  const mode = getNotificationMode();
+  const channels = configuredChannels();
+  const active = Object.entries(channels).filter(([, ok]) => ok).map(([name]) => name);
+  console.log(`Notificaciones en modo ${mode.toUpperCase()}${loadedEnvFiles.length ? ` (credenciales de ${loadedEnvFiles.join(', ')})` : ' (no se encontró backend/.env)'}.`);
+  if (mode === 'live') console.log(`Canales activos: ${active.join(', ') || 'ninguno'}.`);
+  else console.log('Los mensajes NO salen a internet: crea backend/.env con las credenciales (ver backend/.env.example).');
+  channelProblems().forEach(problem => console.log(`  · ${problem}`));
+}
+
 const LIST_COLUMNS = `notification_id AS id, event_id AS eventId, affiliate_id AS affiliateId, event_type AS eventType, channel,
   recipient, subject, body, status, provider, error, reference, created_at AS createdAt`;
 
@@ -80,7 +93,7 @@ startService({
       path: '/health',
       handler: (_req, res) => json(res, 200, {
         service: 'notifications-service', status: 'ok', database: db.file,
-        mode: getNotificationMode(), channels: configuredChannels(), rabbitmq: getBrokerStatus(),
+        mode: getNotificationMode(), channels: configuredChannels(), missing: channelProblems(), rabbitmq: getBrokerStatus(),
       }),
     },
     {

@@ -1,19 +1,17 @@
 // Inicia todos los microservicios y el API Gateway con un solo comando: npm start
 // Cada microservicio crea/abre su propia base de datos en data/db/<servicio>.sqlite.
 import { spawn } from 'node:child_process';
-import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GATEWAY_PORT, SERVICES } from './config.js';
+import { loadedEnvFiles } from './env.js';
+import { getNotificationMode } from './notification-providers.js';
 
 const srcDir = path.dirname(fileURLToPath(import.meta.url));
-// Credenciales de correo/SMS/WhatsApp: backend/.env (copia de .env.example).
-const envFile = path.join(srcDir, '..', '.env');
-if (fs.existsSync(envFile)) {
-  process.loadEnvFile(envFile);
-  console.log(`Variables cargadas desde ${envFile} (notificaciones en modo ${process.env.NOTIFICATIONS_MODE || 'mock'}).`);
-}
+// Credenciales de correo/SMS/WhatsApp: backend/.env (copia de .env.example). Las carga env.js.
+if (loadedEnvFiles.length) console.log(`Variables cargadas desde ${loadedEnvFiles.join(', ')}.`);
+if (getNotificationMode() !== 'live') console.log('Notificaciones SIMULADAS: no llegan al correo ni a WhatsApp. Crea backend/.env (ver backend/.env.example).');
 const services = [
   ['users', 'users-service.js'],
   ['auth', 'auth-service.js'],
