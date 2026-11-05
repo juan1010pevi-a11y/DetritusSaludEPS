@@ -85,7 +85,7 @@ export default function AgendarCita() {
     try {
       // Para el call center, la disponibilidad también descarta horas que se cruzan con otras citas del paciente.
       const patient = role === 'administrator' && /^\d{5,12}$/.test(patientDocument) ? patientDocument : undefined;
-      const data = await getAvailability({ specialty, doctorId: doctorId || undefined, from, days: DAYS_PER_PAGE, document: patient });
+      const data = await getAvailability({ specialty, doctorId: doctorId || undefined, from, days: DAYS_PER_PAGE, document: patient, modality });
       setAvailability(data);
       if (!keepSelection) {
         const firstDay = data.days.find(day => day.total > 0);
@@ -97,7 +97,7 @@ export default function AgendarCita() {
     } finally {
       setLoadingSlots(false);
     }
-  }, [specialty, doctorId, from, role, patientDocument]);
+  }, [specialty, doctorId, from, role, patientDocument, modality]);
 
   useEffect(() => { loadAvailability(); }, [loadAvailability]);
 
