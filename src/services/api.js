@@ -98,8 +98,8 @@ export const getSpecialties = () => request('/healthcare/specialties');
 
 export const getDoctors = specialty => request(`/healthcare/doctors?${query({ specialty })}`);
 
-export const getAvailability = ({ specialty, doctorId, from, days = 14, document, excludeAppointmentId }) => request(
-  `/healthcare/availability?${query({ specialty, doctorId, from, days, document, excludeAppointmentId })}`,
+export const getAvailability = ({ specialty, doctorId, from, days = 14, document, excludeAppointmentId, modality }) => request(
+  `/healthcare/availability?${query({ specialty, doctorId, from, days, document, excludeAppointmentId, modality })}`,
 );
 
 export const rescheduleAppointment = data => request('/healthcare/appointments/reschedule', {

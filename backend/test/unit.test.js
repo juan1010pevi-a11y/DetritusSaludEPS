@@ -80,14 +80,43 @@ test('los cupos libres excluyen cruces con el médico, con el paciente y las aus
   const date = '2026-11-02';
   const base = { doctor, blocks, date };
   assert.deepEqual(freeSlots(base), ['08:00', '08:30', '09:00', '09:30']);
-  // El médico tiene una cita heredada de 20 minutos a las 08:40 (cambió su duración): solo 08:30 se cruza.
-  assert.deepEqual(freeSlots({ ...base, doctorBusy: [{ time: '08:40', duration: 20 }] }), ['08:00', '09:00', '09:30']);
+  // El médico tiene una cita heredada de 20 minutos a las 08:40: 08:00 y 09:00 no dejan margen.
+  assert.deepEqual(freeSlots({ ...base, doctorBusy: [{ time: '08:40', duration: 20 }] }), ['09:30']);
   // El paciente ya tiene otra cita 08:20-08:40 con otro médico: 08:00 y 08:30 se cruzan.
   assert.deepEqual(freeSlots({ ...base, patientBusy: [{ time: '08:20', duration: 20, specialty: 'Medicina general' }] }), ['09:00', '09:30']);
   assert.deepEqual(freeSlots({ ...base, absent: true }), []);
   assert.match(slotProblem({ ...base, time: '08:30', patientBusy: [{ time: '08:20', duration: 20, specialty: 'Medicina general' }] }), /se cruza/);
   assert.match(slotProblem({ ...base, time: '08:15' }), /no tiene ese horario/);
   assert.match(slotProblem({ ...base, time: '08:00', now: { date, minutes: 7 * 60 + 45 }, minLeadMinutes: 30 }), /ya no está disponible/);
+});
+
+test('el médico necesita 20 minutos entre sus citas', () => {
+  const doctor = { id: 'd1', name: 'Dra. Prueba', slotMinutes: 20 };
+  const blocks = [{ weekday: 1, start: '13:00', end: '16:00' }];
+  const base = { doctor, blocks, date: '2026-11-02' };
+  const existing = [{ time: '14:00', duration: 20 }];
+
+  assert.match(slotProblem({ ...base, time: '14:20', doctorBusy: existing }), /al menos 20 minutos/);
+  assert.match(slotProblem({ ...base, time: '13:40', doctorBusy: existing }), /al menos 20 minutos/);
+  assert.equal(slotProblem({ ...base, time: '14:40', doctorBusy: existing }), null, '20 minutos libres después sí bastan');
+  assert.equal(slotProblem({ ...base, time: '13:20', doctorBusy: existing }), null, '20 minutos libres antes sí bastan');
+});
+
+test('las citas presenciales en sedes distintas requieren 30 minutos de traslado', () => {
+  const doctor = { id: 'd2', name: 'Dr. Sede distinta', site: 'Sede Chapinero', slotMinutes: 10 };
+  const blocks = [{ weekday: 1, start: '13:00', end: '16:00' }];
+  const base = { doctor, blocks, date: '2026-11-02' };
+  const existing = [{ time: '14:00', duration: 20, site: 'Sede Suba', modality: 'Presencial', specialty: 'Medicina general' }];
+
+  assert.match(slotProblem({ ...base, time: '14:30', patientBusy: existing }), /al menos 30 minutos/);
+  assert.match(slotProblem({ ...base, time: '13:30', patientBusy: existing }), /al menos 30 minutos/);
+  assert.equal(slotProblem({ ...base, time: '14:50', patientBusy: existing }), null, '30 minutos después de finalizar sí permite el traslado');
+  assert.equal(slotProblem({
+    ...base, time: '14:20', site: 'Sede Suba', patientBusy: existing,
+  }), null, 'no se exige traslado dentro de la misma sede');
+  assert.equal(slotProblem({
+    ...base, time: '14:20', modality: 'Teleconsulta', patientBusy: existing,
+  }), null, 'la teleconsulta no requiere desplazamiento');
 });
 
 test('bloques de horario que se cruzan se rechazan', () => {

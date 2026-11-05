@@ -14,7 +14,9 @@ export default function RescheduleModal({ appointment, onClose, onDone }) {
   const [state, setState] = useState({ status: 'loading', message: '' });
 
   useEffect(() => {
-    getAvailability({ specialty: appointment.specialty, days: 21, excludeAppointmentId: appointment.id })
+    getAvailability({
+      specialty: appointment.specialty, days: 21, excludeAppointmentId: appointment.id, modality: appointment.modality,
+    })
       .then(data => {
         setAvailability(data);
         setDay(data.days.find(item => item.total > 0)?.date || null);

@@ -10,6 +10,8 @@ import { slotsForBlock, toMinutes, weekdayOf } from './clinical-catalog.js';
 export const DOCTOR_BUSY_STATUSES = ['requested', 'confirmed', 'completed', 'no_show'];
 // Estados que ocupan el tiempo del paciente (solo citas por venir).
 export const PATIENT_BUSY_STATUSES = ['requested', 'confirmed'];
+export const DOCTOR_BUFFER_MINUTES = 20;
+export const PATIENT_TRAVEL_BUFFER_MINUTES = 30;
 
 export function overlaps(startA, minutesA, startB, minutesB) {
   const a = toMinutes(startA);
@@ -30,22 +32,66 @@ export function firstConflict(time, minutes, appointments) {
   return appointments.find(item => item.time && overlaps(time, minutes, item.time, item.duration || minutes)) || null;
 }
 
+function firstDoctorBufferConflict(time, minutes, appointments) {
+  const start = toMinutes(time);
+  const end = start + minutes;
+  return appointments.find(appointment => {
+    if (!appointment.time) return false;
+    const appointmentStart = toMinutes(appointment.time);
+    const appointmentEnd = appointmentStart + (appointment.duration || minutes);
+    const gap = start >= appointmentEnd
+      ? start - appointmentEnd
+      : appointmentStart >= end
+        ? appointmentStart - end
+        : 0;
+    return gap < DOCTOR_BUFFER_MINUTES;
+  }) || null;
+}
+
+function needsTravelBuffer(site, modality, appointment) {
+  if (modality === 'Teleconsulta' || appointment.modality === 'Teleconsulta' || !site || !appointment.site) return false;
+  return site.trim().toLocaleLowerCase('es') !== appointment.site.trim().toLocaleLowerCase('es');
+}
+
+function firstTravelConflict(time, minutes, appointments, site, modality) {
+  const start = toMinutes(time);
+  const end = start + minutes;
+  return appointments.find(appointment => {
+    if (!appointment.time || !needsTravelBuffer(site, modality, appointment)) return false;
+    const appointmentStart = toMinutes(appointment.time);
+    const appointmentEnd = appointmentStart + (appointment.duration || minutes);
+    const gap = start >= appointmentEnd
+      ? start - appointmentEnd
+      : appointmentStart >= end
+        ? appointmentStart - end
+        : 0;
+    return gap < PATIENT_TRAVEL_BUFFER_MINUTES;
+  }) || null;
+}
+
 /**
  * Devuelve el motivo por el que un cupo NO se puede asignar, o null si está libre.
  *  - doctorBusy: citas del médico ese día (con hora y duración)
  *  - patientBusy: citas activas del paciente ese día (con cualquier médico)
  *  - absent: el médico tiene incapacidad/vacaciones ese día
  */
-export function slotProblem({ doctor, blocks, date, time, doctorBusy = [], patientBusy = [], absent = false, now = null, minLeadMinutes = 0 }) {
+export function slotProblem({ doctor, blocks, date, time, site = doctor.site, modality = 'Presencial', doctorBusy = [], patientBusy = [], absent = false, now = null, minLeadMinutes = 0 }) {
   if (absent) return `${doctor.name} no atiende ese día por una novedad (incapacidad, vacaciones o licencia).`;
   if (!slotsOfDoctorOnDate(doctor, blocks, date).includes(time)) return `${doctor.name} no tiene ese horario disponible.`;
   if (now && date === now.date && toMinutes(time) <= now.minutes + minLeadMinutes) return 'Ese horario ya no está disponible para hoy.';
   if (now && date < now.date) return 'No se pueden asignar citas en fechas pasadas.';
   const doctorConflict = firstConflict(time, doctor.slotMinutes, doctorBusy);
   if (doctorConflict) return 'Ese cupo acaba de ser asignado a otro paciente. Elige otro horario.';
+  if (firstDoctorBufferConflict(time, doctor.slotMinutes, doctorBusy)) {
+    return `El profesional necesita al menos ${DOCTOR_BUFFER_MINUTES} minutos entre citas. Elige otro horario.`;
+  }
   const patientConflict = firstConflict(time, doctor.slotMinutes, patientBusy);
   if (patientConflict) {
     return `Ya tienes una cita de ${patientConflict.specialty} a las ${patientConflict.time} que se cruza con ese horario. Elige otra hora.`;
+  }
+  const travelConflict = firstTravelConflict(time, doctor.slotMinutes, patientBusy, site, modality);
+  if (travelConflict) {
+    return `Debes dejar al menos ${PATIENT_TRAVEL_BUFFER_MINUTES} minutos para desplazarte entre sedes de tus citas. Elige otro horario.`;
   }
   return null;
 }

@@ -122,7 +122,7 @@ async function doctorProfile(doctorId) {
 
 function doctorBusy(doctorId, date, excludeId = null) {
   return queryRows(
-    `SELECT appointment_id AS id, appointment_time AS time, duration_minutes AS duration, specialty
+    `SELECT appointment_id AS id, appointment_time AS time, duration_minutes AS duration, specialty, site, modality
      FROM fact_appointments
      WHERE doctor_id = ? AND appointment_date = ? AND status IN (${DOCTOR_BUSY_STATUSES.map(() => '?').join(',')})
        AND appointment_id <> COALESCE(?, '')`,
@@ -133,7 +133,7 @@ function doctorBusy(doctorId, date, excludeId = null) {
 function patientBusy(patientId, date, excludeId = null) {
   if (!patientId) return [];
   return queryRows(
-    `SELECT appointment_id AS id, appointment_time AS time, duration_minutes AS duration, specialty
+    `SELECT appointment_id AS id, appointment_time AS time, duration_minutes AS duration, specialty, site, modality
      FROM fact_appointments
      WHERE affiliate_id = ? AND appointment_date = ? AND status IN (${PATIENT_BUSY_STATUSES.map(() => '?').join(',')})
        AND appointment_id <> COALESCE(?, '')`,
@@ -142,9 +142,11 @@ function patientBusy(patientId, date, excludeId = null) {
 }
 
 /** Verifica un cupo con todas las reglas (horario, ausencias, cruces del médico y del paciente). */
-function checkSlot({ doctor, date, time, patientId, excludeId, enforceLead = true }) {
+function checkSlot({ doctor, date, time, patientId, excludeId, modality = 'Presencial', enforceLead = true }) {
   return slotProblem({
     doctor,
+    site: doctor.site,
+    modality,
     blocks: scheduleOf(doctor.id),
     date,
     time,
@@ -156,7 +158,7 @@ function checkSlot({ doctor, date, time, patientId, excludeId, enforceLead = tru
   });
 }
 
-async function computeAvailability({ specialty, doctorId, from, days, viewerId, excludeAppointmentId }) {
+async function computeAvailability({ specialty, doctorId, from, days, viewerId, excludeAppointmentId, modality = 'Presencial' }) {
   const now = bogotaNow();
   const lastDay = addDays(now.date, MAX_BOOKING_DAYS);
   const start = isValidDate(from) && from > now.date ? from : now.date;
@@ -173,7 +175,7 @@ async function computeAvailability({ specialty, doctorId, from, days, viewerId, 
     const slots = [];
     for (const doctor of doctors) {
       const times = freeSlots({
-        doctor, blocks: blocksByDoctor.get(doctor.id), date,
+        doctor, site: doctor.site, modality, blocks: blocksByDoctor.get(doctor.id), date,
         doctorBusy: doctorBusy(doctor.id, date), patientBusy: mine,
         absent: isAbsent(doctor.id, date), now, minLeadMinutes: MIN_MINUTES_BEFORE_SLOT,
       });
@@ -381,6 +383,7 @@ startService({
           days: url.searchParams.get('days'),
           viewerId,
           excludeAppointmentId: url.searchParams.get('excludeAppointmentId'),
+          modality: url.searchParams.get('modality') === 'Teleconsulta' ? 'Teleconsulta' : 'Presencial',
         }));
       },
     },
@@ -443,7 +446,7 @@ startService({
         if (date < now.date || date > addDays(now.date, MAX_BOOKING_DAYS)) {
           return json(res, 409, { error: `Solo se pueden agendar citas desde hoy y hasta ${MAX_BOOKING_DAYS} días.` });
         }
-        const problem = checkSlot({ doctor, date, time, patientId: patient.id });
+        const problem = checkSlot({ doctor, date, time, patientId: patient.id, modality });
         if (problem) return json(res, 409, { error: problem });
         if (!isLab) {
           const pending = queryOne(
@@ -506,7 +509,9 @@ startService({
         if (doctor.id === current.affiliateId) return json(res, 400, { error: 'No puedes agendar una cita contigo mismo.' });
         const now = bogotaNow();
         if (data.date > addDays(now.date, MAX_BOOKING_DAYS)) return json(res, 409, { error: `Solo se puede reprogramar hasta ${MAX_BOOKING_DAYS} días.` });
-        const problem = checkSlot({ doctor, date: data.date, time: data.time, patientId: current.affiliateId, excludeId: current.id });
+        const problem = checkSlot({
+          doctor, date: data.date, time: data.time, patientId: current.affiliateId, excludeId: current.id, modality: current.modality,
+        });
         if (problem) return json(res, 409, { error: problem });
         const note = `Reprogramada del ${current.date} ${current.time} al ${data.date} ${data.time}.`;
         serviceIdFor(current.specialty, Boolean(current.examCode), data.date);

@@ -142,12 +142,57 @@ describe('Citas sin cruces de horario', () => {
     assert.match(response.data.error, /se cruza/);
   });
 
-  test('la disponibilidad ya no ofrece los cupos que se cruzan con sus citas', async () => {
+  test('la disponibilidad excluye cruces y cupos sin tiempo de traslado entre sedes', async () => {
     const response = await api(`/healthcare/availability?specialty=Odontolog%C3%ADa&from=${MONDAY}&days=1`, { token: tokens.affiliate });
     const times = response.data.days[0].slots.map(slot => slot.time);
     assert.ok(!times.includes('08:00'), '08:00-08:30 se cruza con 08:20-08:40');
     assert.ok(!times.includes('08:30'));
-    assert.ok(times.includes('09:00'));
+    assert.ok(!times.includes('09:00'), '09:00 deja solo 20 minutos para trasladarse de Chapinero a Kennedy');
+    assert.ok(times.includes('09:30'));
+  });
+
+  test('el servidor rechaza una cita en otra sede sin el tiempo mínimo de traslado', async () => {
+    const response = await api('/healthcare/appointments', {
+      method: 'POST', token: tokens.affiliate,
+      body: { specialty: 'Odontología', doctorId: 'doc-odontologia', date: MONDAY, time: '09:00' },
+    });
+    assert.equal(response.status, 409);
+    assert.match(response.data.error, /al menos 30 minutos/);
+  });
+
+  test('el mismo médico no recibe citas consecutivas sin 20 minutos de margen', async () => {
+    const registration = await api('/users/register', {
+      method: 'POST',
+      body: {
+        name: 'Paciente Agenda',
+        document: '1098765433',
+        email: 'paciente.agenda@example.com',
+        phone: '3105551235',
+        password: 'clave2026',
+      },
+    });
+    assert.equal(registration.status, 201, registration.data?.error);
+    const patientToken = await backend.login('1098765433', 'clave2026', 'affiliate');
+    const first = await api('/healthcare/appointments', {
+      method: 'POST', token: patientToken,
+      body: { specialty: 'Medicina general', doctorId: 'user-002', date: '2026-11-05', time: '14:00' },
+    });
+    assert.equal(first.status, 201, first.data?.error);
+
+    const availability = await api(
+      '/healthcare/availability?specialty=Medicina%20general&doctorId=user-002&from=2026-11-05&days=1',
+      { token: patientToken },
+    );
+    const times = availability.data.days[0].slots.map(slot => slot.time);
+    assert.ok(!times.includes('14:20'), 'el cupo contiguo no deja margen al profesional');
+    assert.ok(times.includes('14:40'), 'después de 20 minutos libres se ofrece el cupo');
+
+    const second = await api('/healthcare/appointments', {
+      method: 'POST', token: patientToken,
+      body: { specialty: 'Medicina general', doctorId: 'user-002', date: '2026-11-05', time: '14:20' },
+    });
+    assert.equal(second.status, 409);
+    assert.match(second.data.error, /al menos 20 minutos/);
   });
 });
 

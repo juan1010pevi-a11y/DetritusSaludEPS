@@ -44,6 +44,8 @@ El botón **Ingresar** de la barra superior abre el inicio de sesión, donde se 
 
 - `dim_doctors` guarda la especialidad, sede y duración de cada cita; `doctor_schedules` las franjas semanales (día, hora inicio, hora fin).
 - Cada cita guarda su duración (`duration_minutes`) y ocupa el intervalo **[hora, hora + duración)**. Dos citas se cruzan si sus intervalos se solapan, aunque empiecen a horas distintas (por ejemplo 8:20–8:40 y 8:30–9:00). La regla está en `src/scheduling.js` y tiene pruebas unitarias.
+- Cada profesional necesita al menos **20 minutos entre citas**, incluso si la segunda empieza justo cuando termina la primera; disponibilidad y reserva aplican la misma regla.
+- Entre citas presenciales del mismo paciente en sedes distintas se exigen al menos **30 minutos de traslado** después de terminar una cita; no aplica en la misma sede ni a teleconsultas.
 - `GET /api/healthcare/availability` solo ofrece cupos que: están en el horario del médico, no se cruzan con otra cita del médico, no se cruzan con otra cita del mismo paciente (con cualquier médico), el médico no tiene incapacidad ese día y empiezan en más de 30 minutos.
 - `POST /api/healthcare/appointments` vuelve a validar todo en el servidor (además del índice único `doctor_id + fecha + hora`). Si el paciente intenta una cita que se cruza recibe: “Ya tienes una cita de … a las … que se cruza con ese horario”.
 - El médico gestiona su horario en *Portal médico → Mi horario*; el administrador lo hace para todos en *Consola administrativa → Médicos y horarios*.
