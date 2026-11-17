@@ -6,3 +6,8 @@ dist/
 backend/data/db/
 backend/data/*.sqlite
 .vscode/
+# Seguridad: nunca subir bases, secretos generados ni certificados
+*.sqlite
+.dev-secrets.json
+*.pem
+*.key

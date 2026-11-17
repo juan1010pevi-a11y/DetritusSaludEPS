@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import PageHero from '../../components/PageHero/PageHero';
 import Alert from '../../components/Alert/Alert';
 import { DocumentInput, PhoneInput } from '../../components/FormFields/FormFields';
@@ -91,7 +92,7 @@ export default function RadicarPqrsd() {
                 <textarea id="pqrs-description" name="description" placeholder="Escribe los detalles de tu caso (mínimo 20 caracteres)…" minLength={20} maxLength={3000} required onChange={event => setLength(event.target.value.length)} />
                 <small className="field-hint">{length}/3000 caracteres</small>
               </div>
-              <label className="pqrs-consent"><input type="checkbox" name="consent" required /><span>Autorizo el tratamiento de mis datos para gestionar esta solicitud (Ley 1581 de 2012).</span></label>
+              <label className="pqrs-consent"><input type="checkbox" name="consent" required /><span>Autorizo el tratamiento de mis datos para gestionar esta solicitud según la <Link to="/politica-datos">Política de Tratamiento de Datos</Link> (Ley 1581 de 2012).</span></label>
               {state.message && <p className={`form-status form-status--${state.status}`} role="alert">{state.message}</p>}
               <button className="btn btn--primary" type="submit" disabled={state.status === 'loading'}>{state.status === 'loading' ? 'Radicando…' : 'Enviar PQRSD'}</button>
             </form>

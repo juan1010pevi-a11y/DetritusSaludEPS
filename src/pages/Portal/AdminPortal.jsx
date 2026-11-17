@@ -7,6 +7,7 @@ import { AgendaView } from './DoctorPortal';
 import { ABSENCE_LABELS, AbsenceForm, AbsenceList, absenceResultMessage } from './Absences';
 import NotificationsPanel from './NotificationsPanel';
 import PqrsQueue from './PqrsQueue';
+import ServicesPanel from './ServicesPanel';
 import { getAdminDoctors, getRoleUsers, getStaffOverview, updateUserRoles } from '../../services/api';
 import { formatDate, ROLE_ORDER, roleLabel } from '../../lib/roles';
 
@@ -195,6 +196,7 @@ export default function AdminPortal() {
         <button type="button" className={tab === 'pqrs' ? 'is-active' : ''} onClick={() => setTab('pqrs')}>PQRS</button>
         <button type="button" className={tab === 'notifications' ? 'is-active' : ''} onClick={() => setTab('notifications')}>Notificaciones enviadas</button>
         <button type="button" className={tab === 'roles' ? 'is-active' : ''} onClick={() => setTab('roles')}>Perfiles de acceso</button>
+        <button type="button" className={tab === 'services' ? 'is-active' : ''} onClick={() => setTab('services')}>Microservicios</button>
       </div>
       {tab === 'notifications' && <NotificationsPanel adminMode />}
       {tab !== 'notifications' && <section className="portal-card">
@@ -212,6 +214,7 @@ export default function AdminPortal() {
         {tab === 'pharmacy' && <PharmacyQueue />}
         {tab === 'pqrs' && <PqrsQueue />}
         {tab === 'roles' && <RolesPanel />}
+        {tab === 'services' && <ServicesPanel />}
       </section>}
     </>
   );

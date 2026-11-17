@@ -37,3 +37,18 @@ table{width:100%;border-collapse:collapse;font-size:.88rem}th{background:var(--n
 .status-pill--approved,.status-pill--delivered{background:var(--role-affiliate-soft);color:var(--role-affiliate)}
 .status-pill--denied{background:#F8E3E1;color:var(--urgent)}
 .consent-check{display:flex;gap:.55rem;align-items:flex-start;color:var(--text-main);font-size:.82rem;margin:.25rem 0 1.25rem}.consent-check input{margin-top:.15rem;accent-color:var(--navy)}
+
+/* ---------- Tolerancia a fallos: aviso global y consola de microservicios ---------- */
+.service-banner{background:#FBF1DC;color:#6B4510;border-bottom:1px solid #EAD3A2;font-size:.85rem;padding:.6rem 0}
+.service-banner strong{margin-right:.25rem}
+.services-panel__intro{color:var(--text-muted);font-size:.88rem;margin:.25rem 0 1rem;max-width:72ch}
+.services-panel__intro code{background:var(--surface-2);padding:.05rem .35rem;border-radius:4px;font-size:.82rem}
+.services-panel{display:grid;gap:.75rem}
+.services-panel__row{display:flex;justify-content:space-between;gap:1rem;align-items:center;padding:.9rem 1.1rem;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--white)}
+.services-panel__row.is-down{border-color:rgba(192,57,43,.35);background:#FDF5F4}
+.services-panel__main{display:grid;gap:.15rem}
+.services-panel__main strong{font-family:ui-monospace,Consolas,monospace;color:var(--navy);font-size:.95rem}
+.services-panel__label{font-size:.82rem;color:var(--text-main)}
+.services-panel__impact{font-size:.78rem;color:var(--text-muted)}
+.services-panel__side{display:flex;flex-direction:column;align-items:flex-end;gap:.5rem;flex-shrink:0}
+@media(max-width:640px){.services-panel__row{flex-direction:column;align-items:flex-start}.services-panel__side{flex-direction:row;align-items:center}}

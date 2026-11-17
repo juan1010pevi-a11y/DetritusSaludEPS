@@ -3,6 +3,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import initSqlJs from 'sql.js';
+import { openRow } from './security/crypto-fields.js';
 
 /**
  * Patrón "Database per Service": cada microservicio abre SU PROPIA base SQLite
@@ -25,6 +26,11 @@ function sqlEngine() {
   return enginePromise;
 }
 
+// Nombres de tabla/columna solo pueden venir del código (nunca del usuario): se validan igual.
+function assertIdentifier(name) {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(String(name))) throw new Error(`Identificador SQL no permitido: ${name}`);
+}
+
 export async function createDatabase(name, { migrate, seed } = {}) {
   const SQL = await sqlEngine();
   const dataDir = dataDirectory();
@@ -35,10 +41,12 @@ export async function createDatabase(name, { migrate, seed } = {}) {
 
   const persist = () => {
     if (inTransaction) return;
-    fs.writeFileSync(file, Buffer.from(database.export()));
+    // 0o600: solo el usuario del servicio puede leer el archivo de la base.
+    fs.writeFileSync(file, Buffer.from(database.export()), { mode: 0o600 });
   };
 
-  const queryRows = (sql, params = []) => {
+  // Lectura sin descifrar (solo para migraciones de cifrado).
+  const rawRows = (sql, params = []) => {
     const statement = database.prepare(sql);
     statement.bind(params);
     const rows = [];
@@ -46,11 +54,14 @@ export async function createDatabase(name, { migrate, seed } = {}) {
     statement.free();
     return rows;
   };
+  // Los campos cifrados con AES-256-GCM (enc:v1:…) se descifran al leer.
+  const queryRows = (sql, params = []) => rawRows(sql, params).map(openRow);
 
   const db = {
     name,
     file,
     queryRows,
+    rawRows,
     queryOne: (sql, params = []) => queryRows(sql, params)[0] || null,
     /** Ejecuta una sentencia y guarda el archivo. Devuelve cuántas filas cambió. */
     execute(sql, params = []) {
@@ -76,9 +87,11 @@ export async function createDatabase(name, { migrate, seed } = {}) {
       }
     },
     columnsOf(table) {
+      assertIdentifier(table);
       return queryRows(`PRAGMA table_info(${table})`).map(row => row.name);
     },
     addColumnIfMissing(table, column, definition) {
+      assertIdentifier(table); assertIdentifier(column);
       if (!db.columnsOf(table).includes(column)) database.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
     },
     close() {

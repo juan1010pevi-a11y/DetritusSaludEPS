@@ -365,7 +365,7 @@ export default function Afiliarme() {
                   <div className="declarations">
                     <label><input type="checkbox" checked={data.declareNoOtherEps} onChange={event => set('declareNoOtherEps', event.target.checked)} required /> Declaro que ni yo ni mis beneficiarios estamos afiliados como cotizantes o beneficiarios en otra EPS (la multiafiliación está prohibida).</label>
                     <label><input type="checkbox" checked={data.acceptTruthfulness} onChange={event => set('acceptTruthfulness', event.target.checked)} required /> Declaro que la información suministrada es verdadera y autorizo su verificación ante la BDUA y demás entidades.</label>
-                    <label><input type="checkbox" checked={data.acceptDataPolicy} onChange={event => set('acceptDataPolicy', event.target.checked)} required /> Autorizo el tratamiento de mis datos personales y de salud conforme a la Ley 1581 de 2012 y la política de privacidad de Detritus Salud E.P.S.</label>
+                    <label><input type="checkbox" checked={data.acceptDataPolicy} onChange={event => set('acceptDataPolicy', event.target.checked)} required /> Autorizo el tratamiento de mis datos personales y de salud conforme a la Ley 1581 de 2012 y la <Link to="/politica-datos">Política de Tratamiento de Datos</Link> de Detritus Salud E.P.S.</label>
                   </div>
                 </>
               )}

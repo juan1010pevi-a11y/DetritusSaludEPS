@@ -40,6 +40,8 @@ El botón **Ingresar** de la barra superior abre el inicio de sesión, donde se 
 | Afiliada **y** médica | `1010101010` | `demo123` | Laura Gómez: un documento, dos perfiles |
 | Administrador | `900000002` | `admin123` | Médicos, horarios, perfiles y agenda general |
 
+Estas claves son solo para desarrollo local. En producción, mantén `VITE_SHOW_DEMO_ACCOUNTS=false`. Para habilitar usuarios demo en Render, configura `DEMO_AFFILIATE_PASSWORD`, `DEMO_DOCTOR_PASSWORD` y `DEMO_ADMIN_PASSWORD` como secretos distintos de al menos 16 caracteres, y después establece `SEED_DEMO=1`. Nunca uses las claves de esta tabla en el servicio público.
+
 ## Citas según el horario de los médicos (sin cruces)
 
 - `dim_doctors` guarda la especialidad, sede y duración de cada cita; `doctor_schedules` las franjas semanales (día, hora inicio, hora fin).
@@ -166,7 +168,8 @@ Cada servicio llama a `createDatabase('<servicio>')` (`src/database.js`), que ab
 | pqrs | `pqrs.sqlite` | users (saber si quien radica es afiliado) |
 | meds-labs | `meds-labs.sqlite` | users (nombres), healthcare (validar la cita antes de formular) |
 
-- Las rutas `/internal/*` solo las usan los microservicios entre sí: llevan la cabecera `x-internal-key` (`INTERNAL_KEY`) y el API Gateway responde 404 si alguien las pide desde el navegador.
+- Las rutas `/internal/*` solo las usan los microservicios entre sí: cada llamada lleva un **token de servicio** (`x-service-token`, JWT de 60 s firmado con `INTERNAL_KEY` y dirigido al servicio destino) y el API Gateway responde 404 si alguien las pide desde el navegador.
+- La seguridad completa (cifrado, sesiones, 2 pasos, auditoría, Docker y CI) está documentada en [SEGURIDAD.md](../SEGURIDAD.md).
 - Los cambios de varias tablas se hacen en transacción (`db.transaction`), para no dejar datos a medias.
 - Si tenías la base anterior compartida `data/detritus.sqlite`, ya no se usa: puedes borrarla.
 
@@ -177,5 +180,6 @@ npm test
 ```
 
 - `test/unit.test.js`: validaciones, cruce de horarios, plazos de PQRS, plantillas de notificación, hash de contraseñas y cliente SMTP (contra un servidor SMTP falso).
+- `test/security.test.js`: pruebas de seguridad (control de acceso y dueño del recurso, JWT alterado, rutas internas, cookie HttpOnly y rotación del refresh token, verificación en dos pasos, cifrado de la historia clínica en la base, auditoría, cabeceras, CORS, límite de peticiones y arranque bloqueado sin secretos en producción).
 - `test/integration.test.js`: levanta los 7 microservicios + gateway en puertos 5600–5607 con bases temporales y recorre los flujos completos (bases separadas, login y bloqueo, registro con validaciones, citas sin cruces, incapacidad con reasignación y reprogramación, historia clínica, fórmulas, laboratorio, PQRS, notificaciones y recuperación de contraseña).
 - La variable `FAKE_NOW=2026-11-02T06:00` fija la fecha de las pruebas para que no dependan del día en que se ejecuten.

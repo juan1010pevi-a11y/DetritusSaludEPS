@@ -1,5 +1,8 @@
 import './env.js'; // primero: credenciales de backend/.env
+import crypto from 'node:crypto';
 import { startService, json, readJson } from './service.js';
+import { seal, sealExistingColumns } from './security/crypto-fields.js';
+import { enableAudit, listAudit } from './security/audit.js';
 import { createDatabase } from './database.js';
 import { publishEvent } from './broker.js';
 import { getAuthenticatedUser, requireRole } from './auth.js';
@@ -37,6 +40,14 @@ const db = await createDatabase('meds-labs', {
   },
 });
 const { execute, queryOne, queryRows } = db;
+
+// Resultados de laboratorio cifrados en reposo (AES-256-GCM); se descifran al leer (database.js).
+sealExistingColumns(db, {
+  fact_lab_results: ['result', 'observations'],
+  fact_lab_result_items: ['value'],
+  fact_prescriptions: ['instructions'],
+}, { fact_lab_results: 'lab_result_id', fact_lab_result_items: 'item_id', fact_prescriptions: 'prescription_id' });
+const audit = enableAudit(db);
 const labs = labDocuments(db);
 
 async function listPrescriptions(where, params) {
@@ -85,14 +96,17 @@ startService({
         const value = String(url.searchParams.get('document') || url.searchParams.get('affiliateId') || '').trim();
         const number = String(url.searchParams.get('prescriptionNumber') || '').trim().toUpperCase();
         const viewer = getAuthenticatedUser(req);
-        const isStaff = viewer && ['doctor', 'administrator'].includes(viewer.role);
-        if (!isStaff && (!value || !number)) return json(res, 400, { error: 'Ingresa el documento y el número de fórmula.' });
+        // Solo el administrador (farmacia) consulta sin número de fórmula; los demás necesitan documento + número.
+        const isAdmin = viewer?.role === 'administrator';
+        if (!isAdmin && (!value || !number)) return json(res, 400, { error: 'Ingresa el documento y el número de fórmula.' });
         const filters = [];
         const params = [];
         const patient = await patientFilter(value, 'p.affiliate_id');
         if (patient) { filters.push(patient.sql); if (patient.param) params.push(patient.param); }
         if (number) { filters.push('(UPPER(p.formula_number) = ? OR UPPER(p.prescription_number) = ?)'); params.push(number, number); }
-        return json(res, 200, { items: await listPrescriptions(filters.join(' AND '), params) });
+        const items = await listPrescriptions(filters.join(' AND '), params);
+        audit(req, viewer, { action: 'prescription.lookup', resource: 'fact_prescriptions', resourceId: number || null, patientId: items[0]?.affiliateId || null, outcome: items.length ? 'allowed' : 'not_found' });
+        return json(res, 200, { items });
       },
     },
     {
@@ -139,7 +153,7 @@ startService({
           return json(res, 400, { error: 'Cada medicamento necesita dosis/frecuencia y una cantidad entera entre 1 y 360.' });
         }
         const now = bogotaNow();
-        const formulaNumber = `FAR-${now.date.slice(0, 4)}-${String(Math.floor(100000 + Math.random() * 900000))}`;
+        const formulaNumber = `FAR-${now.date.slice(0, 4)}-${crypto.randomInt(100000, 1000000)}`;
         const instructions = String(data.instructions || '').trim().slice(0, 500) || null;
         db.transaction(() => items.forEach((item, index) => {
           execute(
@@ -148,7 +162,7 @@ startService({
                 delivery_point, formula_number, doctor_id, doctor_name, appointment_id, instructions, valid_until, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, NULL, ?, ?, ?, ?, ?, ?, ?)`,
             [`FAR-${Date.now()}-${index}`, appointment.affiliateId, `${formulaNumber}-${index + 1}`, item.medication,
-              item.dosage, item.quantity, now.date, formulaNumber, user.sub, user.name, appointment.id, instructions,
+              item.dosage, item.quantity, now.date, formulaNumber, user.sub, user.name, appointment.id, seal(instructions),
               addDays(now.date, 30), now.iso],
           );
         }));
@@ -198,8 +212,8 @@ startService({
         const document = String(url.searchParams.get('document') || '').trim();
         const orderNumber = String(url.searchParams.get('orderNumber') || '').trim().toUpperCase();
         const viewer = getAuthenticatedUser(req);
-        const isStaff = viewer && ['doctor', 'administrator'].includes(viewer.role);
-        if (!isStaff && (!document || !orderNumber)) {
+        const isAdmin = viewer?.role === 'administrator';
+        if (!isAdmin && (!document || !orderNumber)) {
           return json(res, 400, { error: 'Ingresa el documento del paciente y el número de orden.' });
         }
         const filters = [];
@@ -207,7 +221,9 @@ startService({
         const patient = await patientFilter(document, 'r.affiliate_id');
         if (patient) { filters.push(patient.sql); if (patient.param) params.push(patient.param); }
         if (orderNumber) { filters.push('UPPER(r.order_number) = ?'); params.push(orderNumber); }
-        return json(res, 200, { items: await labs.listLabDocuments(filters.join(' AND '), params) });
+        const items = await labs.listLabDocuments(filters.join(' AND '), params);
+        audit(req, viewer, { action: 'lab_result.lookup', resource: 'fact_lab_results', resourceId: orderNumber || null, patientId: items[0]?.affiliateId || null, outcome: items.length ? 'allowed' : 'not_found' });
+        return json(res, 200, { items });
       },
     },
     {
@@ -216,6 +232,7 @@ startService({
       handler: async (req, res) => {
         const user = requireRole(req, res);
         if (!user) return;
+        audit(req, user, { action: 'lab_result.read_own', resource: 'fact_lab_results', patientId: user.sub });
         return json(res, 200, { items: await labs.listLabDocuments('r.affiliate_id = ?', [user.sub]) });
       },
     },
@@ -265,10 +282,11 @@ startService({
           if (value && (parameter.low != null || parameter.high != null) && !/^\d+([.,]\d+)?$/.test(value)) {
             return json(res, 400, { error: `${parameter.name}: escribe solo el valor numérico (ej. 14.2).` });
           }
-          execute('UPDATE fact_lab_result_items SET value = ?, flag = ? WHERE item_id = ?', [value || null, flagFor(parameter, value), item.id]);
+          execute('UPDATE fact_lab_result_items SET value = ?, flag = ? WHERE item_id = ?', [seal(value || null), flagFor(parameter, value), item.id]);
         }
         const observations = String(data.observations || '').trim().slice(0, 1000) || null;
-        execute('UPDATE fact_lab_results SET observations = ? WHERE lab_result_id = ?', [observations, order.id]);
+        execute('UPDATE fact_lab_results SET observations = ? WHERE lab_result_id = ?', [seal(observations), order.id]);
+        audit(req, user, { action: data.publish ? 'lab_result.validate' : 'lab_result.update', resource: 'fact_lab_results', resourceId: order.orderNumber, patientId: order.affiliateId });
 
         if (data.publish) {
           const missing = queryOne(
@@ -285,13 +303,23 @@ startService({
             `UPDATE fact_lab_results SET status = 'available', validated_by = ?, validated_at = ?, result_date = ?, result = ?
              WHERE lab_result_id = ?`,
             [user.name, now.iso, now.date,
-              altered ? `${altered} valor(es) fuera del rango de referencia. Consulta con tu médico tratante.` : 'Valores dentro de los rangos de referencia.',
+              seal(altered ? `${altered} valor(es) fuera del rango de referencia. Consulta con tu médico tratante.` : 'Valores dentro de los rangos de referencia.'),
               order.id],
           );
           publishEvent('lab-result.available', { id: order.id, affiliateId: order.affiliateId, orderNumber: order.orderNumber, testName: order.testName });
         }
         const [document] = await labs.listLabDocuments('r.lab_result_id = ?', [order.id], { includeDraftValues: true });
         return json(res, 200, { document });
+      },
+    },
+
+    {
+      // Registro de auditoría de fórmulas y resultados (solo administrador).
+      method: 'GET',
+      path: '/audit',
+      handler: (req, res, url) => {
+        if (!requireRole(req, res, ['administrator'])) return;
+        return json(res, 200, { items: listAudit(db, { patientId: url.searchParams.get('patientId') || undefined, limit: url.searchParams.get('limit') }) });
       },
     },
 

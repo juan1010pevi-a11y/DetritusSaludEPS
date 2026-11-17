@@ -1,6 +1,16 @@
-node_modules
-backend/node_modules
-backend/data/db
+# Contexto de Docker: nunca enviar dependencias locales, bases, secretos ni el historial de Git.
+**/node_modules
 dist
 .git
-.env
+.github
+docs
+**/.env
+**/.env.*
+!**/.env.example
+backend/data/db
+**/*.sqlite
+**/.dev-secrets.json
+**/*.pem
+**/*.key
+*.log
+**/*.log

@@ -13,7 +13,7 @@ const SERVICES = ['users-service.js', 'auth-service.js', 'content-service.js', '
  * carpeta temporal de bases de datos, sin RabbitMQ y con la fecha fija del lunes
  * 2 de noviembre de 2026 a las 6:00 a. m.
  */
-export async function startBackend({ basePort = 5600, fakeNow = '2026-11-02T06:00' } = {}) {
+export async function startBackend({ basePort = 5600, fakeNow = '2026-11-02T06:00', env: extraEnv = {} } = {}) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'detritus-test-'));
   const env = {
     ...process.env,
@@ -23,7 +23,13 @@ export async function startBackend({ basePort = 5600, fakeNow = '2026-11-02T06:0
     NOTIFICATIONS_MODE: 'mock',
     DETRITUS_SKIP_ENV_FILE: '1',
     FAKE_NOW: fakeNow,
+    // Secretos débiles a propósito: en desarrollo se reemplazan por los generados en DATA_DIR.
     AUTH_SECRET: 'test-secret',
+    PASSWORD_HASH_COST: '14',          // scrypt más liviano para que las pruebas sean rápidas
+    RATE_LIMIT_GENERAL: '100000',
+    RATE_LIMIT_AUTH: '100000',
+    RATE_LIMIT_PUBLIC_LOOKUP: '100000',
+    ...extraEnv,
   };
   const logs = [];
   const children = SERVICES.map(file => {
@@ -53,7 +59,7 @@ export async function startBackend({ basePort = 5600, fakeNow = '2026-11-02T06:0
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     const data = await response.json().catch(() => null);
-    return { status: response.status, data };
+    return { status: response.status, data, headers: response.headers };
   }
 
   async function login(document, password, role) {
@@ -82,5 +88,28 @@ export async function startBackend({ basePort = 5600, fakeNow = '2026-11-02T06:0
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
 
-  return { api, login, eventually, stop, dataDir, logs };
+  /** Apaga un microservicio (por ejemplo 'pqrs-service.js') para probar la tolerancia a fallos. */
+  async function killService(file) {
+    const index = SERVICES.indexOf(file);
+    const child = children[index];
+    if (!child || child.exitCode !== null || child.signalCode !== null) return;
+    await new Promise(resolve => { child.once('exit', resolve); child.kill('SIGTERM'); });
+  }
+
+  /** Vuelve a encender un microservicio apagado con killService y espera a que responda. */
+  async function reviveService(file, port) {
+    const index = SERVICES.indexOf(file);
+    const child = spawn(process.execPath, [path.join(srcDir, file)], { env, cwd: path.join(srcDir, '..') });
+    child.stdout.on('data', chunk => logs.push(`[${file}] ${chunk}`));
+    child.stderr.on('data', chunk => logs.push(`[${file}] ${chunk}`));
+    children[index] = child;
+    const limit = Date.now() + 10000;
+    while (Date.now() < limit) {
+      try { if ((await fetch(`http://localhost:${port}/health`)).ok) return; } catch { /* arrancando */ }
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
+    throw new Error(`${file} no volvió a arrancar:\n${logs.join('')}`);
+  }
+
+  return { api, login, eventually, stop, killService, reviveService, dataDir, logs, env };
 }

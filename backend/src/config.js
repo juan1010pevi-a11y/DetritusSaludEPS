@@ -14,7 +14,8 @@ export const SERVICES = Object.fromEntries(SERVICE_ORDER.map((name, index) => [n
   port: Number(process.env[`${envKey(name)}_PORT`] || BASE_PORT + index + 1),
 }]));
 
-export const GATEWAY_PORT = Number(process.env.GATEWAY_PORT || BASE_PORT);
+// En la nube (Render, Railway…) la plataforma indica el puerto público en PORT.
+export const GATEWAY_PORT = Number(process.env.GATEWAY_PORT || process.env.PORT || BASE_PORT);
 
 export function serviceUrl(name) {
   const service = SERVICES[name];
@@ -23,3 +24,9 @@ export function serviceUrl(name) {
 }
 
 export const SERVICE_NAMES = SERVICE_ORDER;
+
+/** Nombre legible de cada microservicio (mensajes de error y consola del administrador). */
+export const SERVICE_LABELS = {
+  auth: 'autenticación', users: 'usuarios y afiliaciones', content: 'contenidos y noticias', notifications: 'notificaciones',
+  healthcare: 'citas, historia clínica y autorizaciones', pqrs: 'PQRSD', 'meds-labs': 'medicamentos y laboratorio',
+};
