@@ -13,8 +13,8 @@ RUN npm ci --no-audit --no-fund
 COPY index.html vite.config.js ./
 COPY public ./public
 COPY src ./src
-# Cuentas de prueba visibles para que el profesor o un compañero puedan entrar.
-ARG VITE_SHOW_DEMO_ACCOUNTS=true
+# Las cuentas de prueba no se muestran por defecto en el sitio público.
+ARG VITE_SHOW_DEMO_ACCOUNTS=false
 ARG VITE_HCAPTCHA_SITEKEY=
 ENV VITE_API_URL=/api \
     VITE_SHOW_DEMO_ACCOUNTS=$VITE_SHOW_DEMO_ACCOUNTS \
@@ -24,7 +24,7 @@ RUN npm run build
 FROM node:24-alpine
 ENV NODE_ENV=production \
     RABBITMQ_DISABLED=1 \
-    SEED_DEMO=1 \
+    SEED_DEMO=0 \
     STATIC_DIR=/app/web \
     DATA_DIR=/app/backend/data/db \
     PORT=10000

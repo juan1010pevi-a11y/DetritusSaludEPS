@@ -47,7 +47,7 @@ En las opciones 1 y 2 se usa la **imagen todo-en-uno**: los 7 microservicios y e
 ### Qué saber de la versión gratuita
 
 - **Se duerme** tras unos 15 minutos sin visitas. La primera visita después tarda ~1 minuto en despertar. Abre el link unos minutos antes de la sustentación.
-- **Las bases se reinician** en cada despliegue o reinicio (el disco es temporal). Siempre vuelven las cuentas de prueba (`SEED_DEMO=1`). Para datos permanentes se necesita un disco persistente (plan pago) o una base externa.
+- **Las bases se reinician** en cada despliegue o reinicio (el disco es temporal). Por defecto, las cuentas demo están desactivadas y ocultas. Para habilitarlas en Render, primero agrega `DEMO_AFFILIATE_PASSWORD`, `DEMO_DOCTOR_PASSWORD` y `DEMO_ADMIN_PASSWORD` como secretos distintos de al menos 16 caracteres; luego establece `SEED_DEMO=1` y conserva `VITE_SHOW_DEMO_ACCOUNTS=false`. Las claves publicadas en `backend/README.md` son solo para uso local. Para datos permanentes se necesita un disco persistente (plan pago) o una base externa.
 - Sin RabbitMQ: los eventos llegan a notifications por HTTP (respaldo incluido en `broker.js`). Sin credenciales, las notificaciones quedan como “Simuladas” en el portal. Para correo real agrega en *Environment* las variables de `backend/.env.example` (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` o `RESEND_API_KEY`).
 - Cada `git push` a `main` vuelve a desplegar solo (`autoDeploy: true`).
 

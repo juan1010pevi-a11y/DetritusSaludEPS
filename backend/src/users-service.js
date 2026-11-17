@@ -10,6 +10,7 @@ import { seal, sealExistingColumns } from './security/crypto-fields.js';
 import { callService, requireInternal, tryCallService } from './internal.js';
 import { publishEvent } from './broker.js';
 import { DEMO_PEOPLE } from './seed-data.js';
+import { resolveDemoPeople } from './demo-credentials.js';
 import { documentError, emailError, maskContact, nameError, normalizePhone, passwordError, phoneError } from './validators.js';
 
 const availableRoles = ['affiliate', 'doctor', 'administrator'];
@@ -17,8 +18,11 @@ const ROLE_PRIORITY = ['affiliate', 'doctor', 'administrator'];
 
 // Versión vigente de la Política de Tratamiento de Datos (Ley 1581 de 2012). Se guarda con cada autorización.
 export const DATA_POLICY_VERSION = '2026-11';
-// Las cuentas de demostración solo se crean fuera de producción (o si se pide con SEED_DEMO=1).
-const seedDemo = !isProduction() || process.env.SEED_DEMO === '1';
+const demoPeople = resolveDemoPeople(DEMO_PEOPLE, {
+  production: isProduction(),
+  seedDemo: process.env.SEED_DEMO === '1',
+  env: process.env,
+});
 
 const db = await createDatabase('users', {
   migrate(database) {
@@ -29,8 +33,17 @@ const db = await createDatabase('users', {
     database.execute("INSERT OR IGNORE INTO dim_plans (name, regime) VALUES ('Régimen contributivo', 'contributivo')");
     database.execute("INSERT OR IGNORE INTO dim_plans (name, regime) VALUES ('Régimen subsidiado', 'subsidiado')");
     const plan = database.queryOne("SELECT plan_id FROM dim_plans WHERE name = 'Régimen contributivo'").plan_id;
-    for (const person of seedDemo ? DEMO_PEOPLE : []) {
-      if (database.queryOne('SELECT 1 AS ok FROM dim_affiliates WHERE affiliate_id = ?', [person.id])) continue;
+    for (const person of demoPeople) {
+      const existing = database.queryOne('SELECT password FROM dim_affiliates WHERE affiliate_id = ?', [person.id]);
+      if (existing) {
+        const hasLegacyPassword = existing.password === person.legacyPassword
+          || (isPasswordHash(existing.password) && verifyPassword(person.legacyPassword, existing.password));
+        if (person.password !== person.legacyPassword && hasLegacyPassword) {
+          database.execute('UPDATE dim_affiliates SET password = ? WHERE affiliate_id = ?',
+            [hashPassword(person.password), person.id]);
+        }
+        continue;
+      }
       database.execute(
         `INSERT INTO dim_affiliates (affiliate_id, name, document, password, email, phone, whatsapp_opt_in, role, status, plan_id)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)`,

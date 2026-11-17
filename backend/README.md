@@ -40,6 +40,8 @@ El botón **Ingresar** de la barra superior abre el inicio de sesión, donde se 
 | Afiliada **y** médica | `1010101010` | `demo123` | Laura Gómez: un documento, dos perfiles |
 | Administrador | `900000002` | `admin123` | Médicos, horarios, perfiles y agenda general |
 
+Estas claves son solo para desarrollo local. En producción, mantén `VITE_SHOW_DEMO_ACCOUNTS=false`. Para habilitar usuarios demo en Render, configura `DEMO_AFFILIATE_PASSWORD`, `DEMO_DOCTOR_PASSWORD` y `DEMO_ADMIN_PASSWORD` como secretos distintos de al menos 16 caracteres, y después establece `SEED_DEMO=1`. Nunca uses las claves de esta tabla en el servicio público.
+
 ## Citas según el horario de los médicos (sin cruces)
 
 - `dim_doctors` guarda la especialidad, sede y duración de cada cita; `doctor_schedules` las franjas semanales (día, hora inicio, hora fin).
