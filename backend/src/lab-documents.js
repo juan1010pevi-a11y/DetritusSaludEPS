@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { bogotaNow, findLabExam } from './clinical-catalog.js';
 import { peopleById } from './internal.js';
 
@@ -11,7 +12,7 @@ export function labDocuments(db) {
   function newLabOrderNumber() {
     const year = bogotaNow().date.slice(0, 4);
     for (let attempt = 0; attempt < 20; attempt += 1) {
-      const candidate = `LAB-${year}-${String(Math.floor(100000 + Math.random() * 900000))}`;
+      const candidate = `LAB-${year}-${crypto.randomInt(100000, 1000000)}`;
       if (!queryOne('SELECT 1 AS found FROM fact_lab_results WHERE order_number = ?', [candidate])) return candidate;
     }
     return `LAB-${year}-${Date.now().toString().slice(-6)}`;
@@ -25,7 +26,7 @@ export function labDocuments(db) {
          (lab_result_id, affiliate_id, order_number, test_name, result, status, result_date, appointment_id, exam_code, sample_type,
           appointment_date, appointment_time, site)
        VALUES (?, ?, ?, ?, NULL, 'scheduled', NULL, ?, ?, ?, ?, ?, ?)`,
-      [`LAB-${Date.now()}${Math.floor(Math.random() * 90 + 10)}`, affiliateId, orderNumber, exam.name, appointmentId, exam.code, exam.sample,
+      [`LAB-${Date.now()}${crypto.randomInt(10, 100)}`, affiliateId, orderNumber, exam.name, appointmentId, exam.code, exam.sample,
         date || null, time || null, site || null],
     );
     return orderNumber;

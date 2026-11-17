@@ -41,6 +41,7 @@ import Trabaja from './pages/Nosotros/Trabaja';
 import NoticiaDetalle from './pages/Noticias/NoticiaDetalle';
 import Portal from './pages/Portal/Portal';
 import Afiliarme from './pages/Afiliacion/Afiliarme';
+import PoliticaDatos from './pages/Legal/PoliticaDatos';
 
 export default function App() {
   return (
@@ -50,6 +51,7 @@ export default function App() {
         <Route path="/noticias/:id" element={<NoticiaDetalle />} />
         <Route path="/portal" element={<Portal />} />
         <Route path="/afiliarme" element={<Afiliarme />} />
+        <Route path="/politica-datos" element={<PoliticaDatos />} />
 
         {/* Afiliados */}
         <Route path="/afiliados" element={<Afiliados />} />

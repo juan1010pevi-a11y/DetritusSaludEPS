@@ -1,3 +1,4 @@
+import { getCaptchaToken } from '../lib/captcha';
 // En desarrollo Vite reenvía /api al API Gateway (ver vite.config.js).
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -11,13 +12,51 @@ export class ApiError extends Error {
   }
 }
 
-async function request(path, options = {}) {
-  const token = localStorage.getItem('token');
+// ---------- Token de acceso ----------
+// El token de acceso (JWT, 15 min) vive SOLO en memoria: ningún script puede leerlo de
+// localStorage si hubiera un XSS. La sesión larga la mantiene una cookie HttpOnly que el
+// navegador envía sola a /api/auth/refresh (credentials: 'include').
+let accessToken = null;
+export const setAccessToken = token => { accessToken = token || null; };
+export const getAccessToken = () => accessToken;
+
+
+let refreshing = null;
+/** Pide un token nuevo con la cookie. Una sola petición a la vez (evita rotar dos veces). */
+export function refreshSession() {
+  refreshing ||= fetch(`${API_URL}/auth/refresh`, { method: 'POST', credentials: 'include' })
+    .then(async response => {
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.token) {
+        if (response.status !== 409) setAccessToken(null);
+        return null;
+      }
+      setAccessToken(data.token);
+      return data;
+    })
+    .catch(() => null)
+    .finally(() => { refreshing = null; });
+  return refreshing;
+}
+
+async function request(path, options = {}, retried = false) {
   let response;
+  const { captcha, ...fetchOptions } = options;
+  // Formularios públicos: token anti-robots de un solo uso (si el CAPTCHA está configurado).
+  let captchaToken = null;
+  if (captcha) {
+    try { captchaToken = await getCaptchaToken(); } catch (error) { throw new ApiError(error.message, 0); }
+  }
   try {
     response = await fetch(`${API_URL}${path}`, {
-      ...options,
-      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
+      ...fetchOptions,
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...(captchaToken ? { 'X-Captcha-Token': captchaToken } : {}),
+        ...fetchOptions.headers,
+      },
     });
   } catch {
     throw new ApiError(BACKEND_DOWN_MESSAGE, 0);
@@ -35,12 +74,23 @@ async function request(path, options = {}) {
   if (response.status === 404 && data?.error === 'Ruta no encontrada') {
     throw new ApiError('El backend que está corriendo es una versión anterior y no tiene esta función. Cierra la ventana negra del backend y vuelve a abrir iniciar.cmd (o ejecuta npm start dentro de backend).', 404, data);
   }
+  // Tolerancia a fallos: solo esta sección queda sin servicio; el resto del portal sigue funcionando.
   if (response.status === 503) {
-    throw new ApiError(`El microservicio ${path.split('/')[1]} no está activo. Reinicia el backend con npm start dentro de la carpeta backend.`, 503, data);
+    throw new ApiError(data?.error || `El servicio de ${path.split('/')[1]} no está disponible en este momento. El resto del portal sigue funcionando.`, 503, data);
+  }
+  if (response.status === 429) {
+    throw new ApiError(data?.error || 'Demasiadas solicitudes. Espera un momento e intenta de nuevo.', 429, data);
   }
   if (!response.ok) {
-    // Si el servidor rechaza el token, la sesión se cierra en toda la aplicación.
-    if (response.status === 401 && token) window.dispatchEvent(new CustomEvent('auth:expired'));
+    // Token de acceso vencido (15 min): se renueva una vez con la cookie y se repite la petición.
+    if (response.status === 401 && accessToken && !retried && !path.startsWith('/auth/')) {
+      const renewed = await refreshSession();
+      if (renewed) {
+        window.dispatchEvent(new CustomEvent('auth:refreshed', { detail: renewed }));
+        return request(path, options, true);
+      }
+      window.dispatchEvent(new CustomEvent('auth:expired'));
+    }
     throw new ApiError(data?.error || `API error: ${response.status}`, response.status, data);
   }
   return data;
@@ -52,21 +102,46 @@ const query = params => new URLSearchParams(
 
 export const getNews = () => request('/content/news');
 
-export const getDashboardSummary = () => Promise.all([
+// allSettled: si un microservicio está apagado, el resumen muestra lo demás en lugar de fallar completo.
+export const getDashboardSummary = () => Promise.allSettled([
   request('/healthcare/appointments/mine'),
   request('/pqrs/requests/mine'),
   request('/healthcare/authorizations/mine'),
-]).then(([appointments, pqrs, authorizations]) => ({
-  appointments: appointments.items || [],
-  pqrs: pqrs.items || [],
-  authorizations: authorizations.items || [],
-}));
+]).then(([appointments, pqrs, authorizations]) => {
+  const items = result => (result.status === 'fulfilled' ? result.value.items || [] : []);
+  return {
+    appointments: items(appointments),
+    pqrs: items(pqrs),
+    authorizations: items(authorizations),
+    unavailable: [appointments, pqrs, authorizations].filter(result => result.status === 'rejected').map(result => result.reason?.message),
+  };
+});
+
+// ---------- Estado de los microservicios ----------
+export const getPublicHealth = () => fetch(`${API_URL}/health`, { credentials: 'omit' })
+  .then(response => response.json())
+  .catch(() => null);
+export const getServicesStatus = () => request('/admin/services');
+export const setServiceState = (name, action) => request(`/admin/services/${encodeURIComponent(name)}/${action}`, { method: 'POST' });
 
 // ---------- Sesión ----------
 export const login = (document, password, role) => request('/auth/login', {
   method: 'POST',
   body: JSON.stringify({ document, password, role }),
 });
+
+export const verifyMfa = (mfaToken, code) => request('/auth/mfa/verify', {
+  method: 'POST',
+  body: JSON.stringify({ mfaToken, code }),
+});
+
+export const logoutRequest = () => request('/auth/logout', { method: 'POST' });
+
+export const getMfaStatus = () => request('/auth/mfa/status');
+export const setupMfa = () => request('/auth/mfa/setup', { method: 'POST' });
+export const enableMfa = code => request('/auth/mfa/enable', { method: 'POST', body: JSON.stringify({ code }) });
+export const disableMfa = code => request('/auth/mfa/disable', { method: 'POST', body: JSON.stringify({ code }) });
+export const getMySessions = () => request('/auth/sessions');
 
 export const forgotPassword = document => request('/auth/password/forgot', {
   method: 'POST',
@@ -85,11 +160,13 @@ export const switchRole = role => request('/auth/switch-role', {
 
 export const createAffiliation = data => request('/users/affiliations', {
   method: 'POST',
+  captcha: true,
   body: JSON.stringify(data),
 });
 
 export const register = data => request('/users/register', {
   method: 'POST',
+  captcha: true,
   body: JSON.stringify(data),
 });
 
@@ -175,6 +252,7 @@ export const createDoctor = data => request('/users/staff/doctors', {
 // ---------- PQRS, perfil y administración ----------
 export const createPqrs = data => request('/pqrs/requests', {
   method: 'POST',
+  captcha: true,
   body: JSON.stringify(data),
 });
 
@@ -187,7 +265,13 @@ export const updatePqrs = (id, data) => request(`/pqrs/requests?id=${encodeURICo
   body: JSON.stringify(data),
 });
 
-export const getProfile = value => request(`/users/profile?document=${encodeURIComponent(value)}`);
+// Perfil completo: requiere sesión (solo el propio o un administrador).
+export const getProfile = value => request(`/users/profile${value ? `?document=${encodeURIComponent(value)}` : ''}`);
+
+// Consulta pública: solo estado y régimen, sin datos personales.
+export const getAffiliationStatus = document => request(`/users/affiliation-status?${query({ document })}`, { captcha: true });
+
+export const getClinicalAudit = params => request(`/healthcare/audit?${query(params || {})}`);
 
 export const getStaffOverview = () => request('/users/staff/overview');
 
@@ -203,7 +287,7 @@ export const updateProfile = data => request('/users/profile', {
   body: JSON.stringify(data),
 });
 
-export const getAuthorizations = (document, number) => request(`/healthcare/authorizations?${query({ document, number })}`);
+export const getAuthorizations = (document, number) => request(`/healthcare/authorizations?${query({ document, number })}`, { captcha: true });
 
 export const getAuthorizationCatalog = () => request('/healthcare/authorizations/catalog');
 
@@ -221,11 +305,12 @@ export const createAuthorization = data => request('/healthcare/authorizations',
   body: JSON.stringify(data),
 });
 
-export const getPqrsById = (id, document) => request(`/pqrs/requests?${query({ id, document })}`);
+export const getPqrsById = (id, document) => request(`/pqrs/requests?${query({ id, document })}`, { captcha: true });
 
 // ---------- Medicamentos y laboratorio ----------
 export const getPrescriptions = (document, prescriptionNumber) => request(
   `/meds-labs/prescriptions?document=${encodeURIComponent(document)}&prescriptionNumber=${encodeURIComponent(prescriptionNumber)}`,
+  { captcha: true },
 );
 
 export const getPharmacyCatalog = () => request('/meds-labs/catalog');
@@ -246,6 +331,7 @@ export const updatePrescriptionStatus = (formulaNumber, status, deliveryPoint) =
 
 export const getLabResults = (document, orderNumber) => request(
   `/meds-labs/lab-results?document=${encodeURIComponent(document)}&orderNumber=${encodeURIComponent(orderNumber)}`,
+  { captcha: true },
 );
 
 export const getMyLabResults = () => request('/meds-labs/lab-results/mine');

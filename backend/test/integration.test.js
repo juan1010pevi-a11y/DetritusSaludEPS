@@ -39,9 +39,13 @@ describe('Base de datos por microservicio', () => {
   test('cada microservicio crea su propio archivo SQLite', async () => {
     const files = fs.readdirSync(backend.dataDir).filter(file => file.endsWith('.sqlite')).sort();
     assert.deepEqual(files, ['auth.sqlite', 'content.sqlite', 'healthcare.sqlite', 'meds-labs.sqlite', 'notifications.sqlite', 'pqrs.sqlite', 'users.sqlite']);
-    const health = await api('/health');
+    // El detalle de bases solo se muestra con la llave interna (aquí, la generada para desarrollo).
+    const { INTERNAL_KEY } = JSON.parse(fs.readFileSync(path.join(backend.dataDir, '.dev-secrets.json'), 'utf8'));
+    const health = await api('/health', { headers: { 'x-internal-key': INTERNAL_KEY } });
     assert.equal(health.status, 200);
     assert.equal(health.data.databases.pqrs, 'pqrs.sqlite');
+    const publicHealth = await api('/health');
+    assert.equal(publicHealth.data.databases, undefined);
   });
 
   test('ninguna base guarda las tablas de otro servicio', async () => {
@@ -61,7 +65,7 @@ describe('Base de datos por microservicio', () => {
     assert.deepEqual(tables('notifications'), ['fact_notifications']);
     assert.ok(tables('meds-labs').includes('fact_prescriptions'));
     assert.ok(!tables('meds-labs').includes('fact_appointments'));
-    assert.deepEqual(tables('auth').sort(), ['login_attempts', 'password_resets']);
+    assert.deepEqual(tables('auth').sort(), ['login_attempts', 'password_resets', 'refresh_tokens', 'user_mfa']);
   });
 
   test('el gateway no expone las rutas internas', async () => {
@@ -78,7 +82,7 @@ describe('Validaciones de datos numéricos', () => {
   });
 
   test('el registro valida documento, celular, correo y contraseña', async () => {
-    const valid = { name: 'Carlos Prueba', document: '1098765432', email: 'carlos@example.com', phone: '3105551234', password: 'clave2026' };
+    const valid = { name: 'Carlos Prueba', document: '1098765432', email: 'carlos@example.com', phone: '3105551234', password: 'clave2026', acceptDataPolicy: true };
     for (const [field, value, message] of [
       ['document', '10987abc', /solo puede tener números/],
       ['phone', '12345', /10 dígitos/],
@@ -169,6 +173,7 @@ describe('Citas sin cruces de horario', () => {
         email: 'paciente.agenda@example.com',
         phone: '3105551235',
         password: 'clave2026',
+        acceptDataPolicy: true,
       },
     });
     assert.equal(registration.status, 201, registration.data?.error);

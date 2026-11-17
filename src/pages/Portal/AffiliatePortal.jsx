@@ -34,14 +34,17 @@ export default function AffiliatePortal({ user }) {
 
   const load = useCallback(async () => {
     try {
-      const [mine, labData, pqrsData] = await Promise.all([
-        getMyAppointments(),
-        getMyLabResults(),
-        getMyPqrs().catch(() => ({ items: [] })),
-      ]);
-      setAppointments(mine.items || []);
-      setLabs(labData.items || []);
-      setPqrs(pqrsData.items || []);
+      // Cada sección depende de un microservicio distinto: si uno está apagado, las demás se muestran igual.
+      const [mine, labData, pqrsData] = await Promise.allSettled([getMyAppointments(), getMyLabResults(), getMyPqrs()]);
+      const items = result => (result.status === 'fulfilled' ? result.value.items || [] : []);
+      setAppointments(items(mine));
+      setLabs(items(labData));
+      setPqrs(items(pqrsData));
+      const failed = [mine, labData, pqrsData].filter(result => result.status === 'rejected').map(result => result.reason?.message);
+      if (failed.length) {
+        setState({ status: 'error', message: [...new Set(failed)].join(' ') });
+        return;
+      }
       // Conserva el mensaje de la última acción (cancelar, reprogramar…).
       setState(current => (current.status === 'loading' ? { status: 'idle', message: '' } : current));
     } catch (error) {

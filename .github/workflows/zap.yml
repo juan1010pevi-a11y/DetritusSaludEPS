@@ -1,0 +1,37 @@
+name: OWASP ZAP (prueba dinámica)
+
+# DAST (puerta 5 del pipeline): levanta todo el sistema con Docker y lo escanea con OWASP ZAP
+# (modo baseline, pasivo). Corre en cada pull request y también a mano desde "Actions".
+# Política: los hallazgos medios ADVIERTEN (no bloquean); se revisan en el siguiente sprint (docs/07-seguridad.md).
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  zap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      AUTH_SECRET: zap-only-auth-secret-0123456789abcdef0123456789
+      INTERNAL_KEY: zap-only-internal-key-0123456789abcdef01234567
+      DATA_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      RABBITMQ_USER: zap
+      RABBITMQ_PASS: zap-password
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose up -d --build
+      - name: Esperar a que el sistema responda
+        run: |
+          for i in $(seq 1 60); do
+            curl -ksf https://localhost:8443/api/health && exit 0
+            sleep 5
+          done
+          docker compose logs; exit 1
+      - uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: https://localhost:8443
+          allow_issue_writing: false
+          fail_action: false
+          cmd_options: '-a'
+      - if: always()
+        run: docker compose down -v
