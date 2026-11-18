@@ -16,7 +16,7 @@ ENV VITE_API_URL=$VITE_API_URL \
     VITE_HCAPTCHA_SITEKEY=$VITE_HCAPTCHA_SITEKEY
 RUN npm run build
 
-FROM alpine:3.20 AS certs
+FROM alpine:3.24 AS certs
 RUN apk add --no-cache openssl \
  && mkdir /certs \
  && openssl req -x509 -nodes -newkey rsa:2048 -days 365 -subj "/CN=localhost" \
