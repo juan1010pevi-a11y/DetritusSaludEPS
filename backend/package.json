@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "node src/start-all.js",
+    "start:web": "node src/start-all.js --con-frontend",
     "test": "node --test --test-concurrency=1 test/*.test.js",
     "gateway": "node src/gateway.js",
     "auth": "node src/auth-service.js",
@@ -13,7 +14,9 @@
     "healthcare": "node src/healthcare-service.js",
     "pqrs": "node src/pqrs-service.js",
     "meds-labs": "node src/meds-labs-service.js",
-    "probar-notificaciones": "node src/test-notify.js"
+    "probar-notificaciones": "node src/test-notify.js",
+    "generar-secretos": "node src/generate-secrets.js",
+    "audit": "npm audit --audit-level=high"
   },
   "dependencies": {
     "amqplib": "^2.0.1",

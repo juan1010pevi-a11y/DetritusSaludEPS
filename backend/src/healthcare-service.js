@@ -1,4 +1,5 @@
 import './env.js'; // primero: credenciales de backend/.env
+import crypto from 'node:crypto';
 import { startService, json, readJson, HttpError } from './service.js';
 import { publishEvent } from './broker.js';
 import { createDatabase } from './database.js';
@@ -11,6 +12,8 @@ import {
 import { DOCTOR_BUSY_STATUSES, freeSlots, PATIENT_BUSY_STATUSES, slotProblem, slotsOfDoctorOnDate } from './scheduling.js';
 import { DEMO_DOCTORS } from './seed-data.js';
 import { bloodPressureError, documentError, numberInRangeError } from './validators.js';
+import { seal, sealExistingColumns } from './security/crypto-fields.js';
+import { enableAudit, listAudit } from './security/audit.js';
 
 const MAX_BOOKING_DAYS = 30;          // ventana de agenda abierta
 const MIN_MINUTES_BEFORE_SLOT = 30;   // no se ofrecen cupos que empiezan en menos de 30 min
@@ -62,6 +65,19 @@ const db = await createDatabase('healthcare', {
   },
 });
 const { execute, queryOne, queryRows } = db;
+
+// Datos clínicos cifrados en reposo con AES-256-GCM. Las lecturas los descifran (database.js).
+const SEALED = {
+  fact_appointments: ['diagnosis', 'clinical_notes'],
+  clinical_encounters: ['chief_complaint', 'current_illness', 'physical_exam', 'diagnosis', 'plan'],
+  clinical_backgrounds: ['allergies', 'personal_history', 'family_history', 'surgical_history', 'current_medications', 'habits'],
+  fact_authorizations: ['reason', 'decision_notes'],
+};
+sealExistingColumns(db, SEALED, {
+  fact_appointments: 'appointment_id', clinical_encounters: 'encounter_id', clinical_backgrounds: 'patient_id', fact_authorizations: 'authorization_id',
+});
+// Registro de quién consulta o modifica la historia clínica.
+const audit = enableAudit(db);
 
 // ---------- Médicos ----------
 
@@ -219,7 +235,7 @@ const appointmentRow = id => queryOne(`SELECT ${APPOINTMENT_COLUMNS} FROM fact_a
 const findAppointment = async id => (await enrich([appointmentRow(id)].filter(Boolean)))[0] || null;
 
 function newAppointmentId() {
-  return `CITA-${Date.now()}${Math.floor(Math.random() * 90 + 10)}`;
+  return `CITA-${Date.now()}${crypto.randomInt(10, 100)}`;
 }
 
 function serviceIdFor(specialty, isLab, date) {
@@ -570,7 +586,7 @@ startService({
         db.transaction(() => {
           execute(
             `UPDATE fact_appointments SET status = 'completed', diagnosis = ?, clinical_notes = ?, updated_at = ? WHERE appointment_id = ?`,
-            [diagnosis.slice(0, 300), plan, now.iso, appointment.id],
+            [seal(diagnosis.slice(0, 300)), seal(plan), now.iso, appointment.id],
           );
           execute(
             `INSERT INTO clinical_encounters (encounter_id, appointment_id, patient_id, doctor_id, doctor_name, specialty, encounter_date,
@@ -578,14 +594,14 @@ startService({
                oxygen_saturation, physical_exam, diagnosis, diagnosis_code, plan, created_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [`HC-${appointment.id.replace('CITA-', '')}`, appointment.id, appointment.affiliateId, user.sub, user.name, appointment.specialty,
-              appointment.date, chiefComplaint.slice(0, 500), String(data.currentIllness || '').trim().slice(0, 2000) || null,
+              appointment.date, seal(chiefComplaint.slice(0, 500)), seal(String(data.currentIllness || '').trim().slice(0, 2000) || null),
               String(vitals.bloodPressure || '').trim() || null, num(vitals.heartRate), num(vitals.respiratoryRate), num(vitals.temperature),
               num(vitals.weightKg), num(vitals.heightCm), num(vitals.oxygenSaturation),
-              String(data.physicalExam || '').trim().slice(0, 2000) || null, diagnosis.slice(0, 300),
-              String(data.diagnosisCode || '').trim().toUpperCase() || null, plan, now.iso],
+              seal(String(data.physicalExam || '').trim().slice(0, 2000) || null), seal(diagnosis.slice(0, 300)),
+              String(data.diagnosisCode || '').trim().toUpperCase() || null, seal(plan), now.iso],
           );
           orders.forEach((order, index) => {
-            order.id = `SOL-${now.date.slice(0, 4)}-${String(Date.now() + index).slice(-6)}`;
+            order.id = `SOL-${now.date.slice(0, 4)}-${crypto.randomInt(100000, 1000000)}`; // número no predecible
             execute(
               `INSERT INTO fact_authorizations
                  (authorization_id, affiliate_id, service_id, status, service_code, service_name, category,
@@ -593,13 +609,14 @@ startService({
                VALUES (?, ?, NULL, 'requested', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
               [order.id, appointment.affiliateId, order.service.code,
                 order.service.name, order.service.category, user.name, `ORD-${appointment.id.replace('CITA-', '')}-${index + 1}`,
-                `${diagnosis}. ${order.reason}`.slice(0, 500), order.priority === 'prioritaria' ? 'prioritaria' : 'normal', now.iso, appointment.id],
+                seal(`${diagnosis}. ${order.reason}`.slice(0, 500)), order.priority === 'prioritaria' ? 'prioritaria' : 'normal', now.iso, appointment.id],
             );
           });
         });
         const updated = await findAppointment(appointment.id);
         publishEvent('appointment.updated', updated);
         orders.forEach(order => publishEvent('authorization.created', { id: order.id, affiliateId: appointment.affiliateId, serviceName: order.service.name }));
+        audit(req, user, { action: 'clinical_encounter.create', resource: 'clinical_encounters', resourceId: appointment.id, patientId: appointment.affiliateId });
         return json(res, 200, { appointment: updated, authorizations: orders.length });
       },
     },
@@ -885,8 +902,10 @@ startService({
         if (!patientId && url.searchParams.get('document')) patientId = (await personByDocument(url.searchParams.get('document')))?.id;
         if (!patientId) return json(res, 404, { error: 'Paciente no encontrado.' });
         if (!doctorTreatsPatient(user.sub, patientId)) {
+          audit(req, user, { action: 'clinical_history.read', resource: 'clinical_history', patientId, outcome: 'denied' });
           return json(res, 403, { error: 'Solo puedes consultar la historia clínica de pacientes que tienes o tuviste en tu agenda.' });
         }
+        audit(req, user, { action: 'clinical_history.read', resource: 'clinical_history', patientId });
         return json(res, 200, await clinicalHistory(patientId));
       },
     },
@@ -896,6 +915,7 @@ startService({
       handler: async (req, res) => {
         const user = requireRole(req, res, ['affiliate']);
         if (!user) return;
+        audit(req, user, { action: 'clinical_history.read_own', resource: 'clinical_history', patientId: user.sub });
         return json(res, 200, await clinicalHistory(user.sub));
       },
     },
@@ -907,9 +927,12 @@ startService({
         if (!user) return;
         const data = await readJson(req);
         const patientId = String(data.patientId || '');
-        if (!doctorTreatsPatient(user.sub, patientId)) return json(res, 403, { error: 'Solo puedes actualizar la historia de tus pacientes.' });
+        if (!doctorTreatsPatient(user.sub, patientId)) {
+          audit(req, user, { action: 'clinical_background.update', resource: 'clinical_backgrounds', patientId, outcome: 'denied' });
+          return json(res, 403, { error: 'Solo puedes actualizar la historia de tus pacientes.' });
+        }
         if (data.bloodType && !BLOOD_TYPES.includes(data.bloodType)) return json(res, 400, { error: 'Grupo sanguíneo no válido.' });
-        const text = value => String(value || '').trim().slice(0, 1000) || null;
+        const text = value => seal(String(value || '').trim().slice(0, 1000) || null);
         execute(
           `INSERT INTO clinical_backgrounds (patient_id, blood_type, allergies, personal_history, family_history, surgical_history,
              current_medications, habits, updated_by, updated_at)
@@ -921,7 +944,21 @@ startService({
           [patientId, data.bloodType || null, text(data.allergies), text(data.personalHistory), text(data.familyHistory),
             text(data.surgicalHistory), text(data.currentMedications), text(data.habits), user.name, bogotaNow().iso],
         );
+        audit(req, user, { action: 'clinical_background.update', resource: 'clinical_backgrounds', patientId });
         return json(res, 200, await clinicalHistory(patientId));
+      },
+    },
+
+    {
+      // Registro de auditoría de la historia clínica (solo administrador).
+      method: 'GET',
+      path: '/audit',
+      handler: async (req, res, url) => {
+        const user = requireRole(req, res, ['administrator']);
+        if (!user) return;
+        let patientId = url.searchParams.get('patientId') || undefined;
+        if (!patientId && url.searchParams.get('document')) patientId = (await personByDocument(url.searchParams.get('document')))?.id || '-';
+        return json(res, 200, { items: listAudit(db, { patientId, actorId: url.searchParams.get('actorId') || undefined, limit: url.searchParams.get('limit') }) });
       },
     },
 
@@ -988,14 +1025,14 @@ startService({
         if (duplicate) return json(res, 409, { error: `Ya tienes una solicitud en trámite para ${service.name} (${duplicate.id}).` });
 
         const now = bogotaNow();
-        const id = `SOL-${now.date.slice(0, 4)}-${String(Date.now()).slice(-6)}`;
+        const id = `SOL-${now.date.slice(0, 4)}-${crypto.randomInt(100000, 1000000)}`; // número no predecible
         execute(
           `INSERT INTO fact_authorizations
              (authorization_id, affiliate_id, service_id, status, service_code, service_name, category,
               ordered_by, order_reference, reason, priority, created_at)
            VALUES (?, ?, NULL, 'requested', ?, ?, ?, ?, ?, ?, ?, ?)`,
           [id, patient.id, service.code, service.name, service.category, orderedBy, orderReference,
-            reason.slice(0, 500), data.priority === 'prioritaria' ? 'prioritaria' : 'normal', now.iso],
+            seal(reason.slice(0, 500)), data.priority === 'prioritaria' ? 'prioritaria' : 'normal', now.iso],
         );
         const [authorization] = await listAuthorizations('au.authorization_id = ?', [id]);
         publishEvent('authorization.created', authorization);
@@ -1023,14 +1060,14 @@ startService({
           execute(
             `UPDATE fact_authorizations SET status = 'approved', auth_number = ?, provider = ?, valid_until = ?,
                decided_by = ?, decided_at = ?, decision_notes = ? WHERE authorization_id = ?`,
-            [`AUT-${now.date.slice(0, 4)}-${String(Math.floor(100000 + Math.random() * 900000))}`,
+            [`AUT-${now.date.slice(0, 4)}-${crypto.randomInt(100000, 1000000)}`,
               String(data.provider || '').trim() || service?.provider || 'Red de prestadores Detritus',
-              addDays(now.date, 90), user.name, now.iso, notes || null, id],
+              addDays(now.date, 90), user.name, now.iso, seal(notes || null), id],
           );
         } else {
           execute(
             "UPDATE fact_authorizations SET status = 'denied', decided_by = ?, decided_at = ?, decision_notes = ? WHERE authorization_id = ?",
-            [user.name, now.iso, notes, id],
+            [user.name, now.iso, seal(notes), id],
           );
         }
         const [authorization] = await listAuthorizations('au.authorization_id = ?', [id]);

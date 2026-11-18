@@ -25,6 +25,7 @@ export default function Footer() {
           <li><Link to="/tramites/autorizaciones">Autorizaciones</Link></li>
           <li><Link to="/tramites/certificado">Certificado</Link></li>
           <li><Link to="/tramites/actualiza-datos">Actualiza datos</Link></li>
+          <li><Link to="/politica-datos">Política de datos</Link></li>
           <li><Link to="/tramites/estado-pqrsd">PQRSD</Link></li>
         </ul></div>
         <div className="footer__col"><h4>Institución</h4><ul>

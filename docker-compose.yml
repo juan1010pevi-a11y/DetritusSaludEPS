@@ -1,12 +1,39 @@
-# Arquitectura completa: frontend, API Gateway, 7 microservicios, RabbitMQ.
+# Arquitectura completa: Nginx (HTTPS) → API Gateway → 7 microservicios → RabbitMQ.
 # Patrón "Database per Service": cada microservicio monta SU PROPIO volumen con SU PROPIA base SQLite.
-x-service: &service
-  build: ./backend
+#
+# Seguridad:
+#  - Solo Nginx publica puertos (8080 → redirige a 8443 HTTPS). Gateway, servicios y RabbitMQ
+#    quedan en la red "internal", que no tiene salida a internet ni puertos en el equipo.
+#  - Solo notifications (correo/SMS) y el gateway (verificación CAPTCHA) tienen salida a internet.
+#  - Los secretos son OBLIGATORIOS: copia .env.example como .env (junto a este archivo) y llénalo.
+#  - Contenedores con usuario sin privilegios, sistema de archivos de solo lectura y sin capacidades extra.
+#
+# Tolerancia a fallos (cada microservicio es un contenedor independiente):
+#  - docker compose stop pqrs    → apaga SOLO PQRS; el gateway responde 503 para /api/pqrs y lo demás sigue.
+#  - docker compose start pqrs   → lo vuelve a encender sin reiniciar nada más.
+#  - restart: unless-stopped     → si un contenedor se cae por error, Docker lo levanta solo.
+
+x-hardening: &hardening
   restart: unless-stopped
+  read_only: true
+  tmpfs:
+    - /tmp
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+
+x-service: &service
+  <<: *hardening
+  build: ./backend
   environment: &service-env
-    AUTH_SECRET: ${AUTH_SECRET:-change-this-in-production}
-    INTERNAL_KEY: ${INTERNAL_KEY:-change-this-internal-key}
-    RABBITMQ_URL: amqp://detritus:detritus@rabbitmq:5672
+    NODE_ENV: production
+    SEED_DEMO: ${SEED_DEMO:-1}                     # cuentas demo para la sustentación (0 = sin cuentas demo)
+    AUTH_SECRET: ${AUTH_SECRET:?Define AUTH_SECRET en .env (ver .env.example)}
+    INTERNAL_KEY: ${INTERNAL_KEY:?Define INTERNAL_KEY en .env (ver .env.example)}
+    DATA_KEY: ${DATA_KEY:?Define DATA_KEY en .env (ver .env.example)}
+    MFA_REQUIRED_FOR_STAFF: ${MFA_REQUIRED_FOR_STAFF:-0}
+    RABBITMQ_URL: amqp://${RABBITMQ_USER:?Define RABBITMQ_USER en .env}:${RABBITMQ_PASS:?Define RABBITMQ_PASS en .env}@rabbitmq:5672/detritus
     DATA_DIR: /app/data/db
     AUTH_HOST: auth
     USERS_HOST: users
@@ -15,79 +42,155 @@ x-service: &service
     HEALTHCARE_HOST: healthcare
     PQRS_HOST: pqrs
     MEDS_LABS_HOST: meds-labs
+  networks:
+    - internal
   depends_on:
     - rabbitmq
 
 services:
   frontend:
-    build: .
+    build:
+      context: .
+      args:
+        VITE_API_URL: /api
+        VITE_SHOW_DEMO_ACCOUNTS: ${VITE_SHOW_DEMO_ACCOUNTS:-true}
+        VITE_HCAPTCHA_SITEKEY: ${VITE_HCAPTCHA_SITEKEY:-}
+    <<: *hardening
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
     ports:
-      - "5173:5173"
-    environment:
-      VITE_API_URL: http://localhost:4000/api
+      - "8080:8080"
+      - "8443:8443"
+    networks:
+      - edge
+      - internal
     depends_on:
       - gateway
 
   rabbitmq:
-    image: rabbitmq:3-management
-    ports:
-      - "5672:5672"
-      - "15672:15672"
+    image: rabbitmq:3-management-alpine
+    restart: unless-stopped
+    # Sin "ports": RabbitMQ y su consola solo son accesibles dentro de la red interna.
     environment:
-      RABBITMQ_DEFAULT_USER: detritus
-      RABBITMQ_DEFAULT_PASS: detritus
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?Define RABBITMQ_USER en .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:?Define RABBITMQ_PASS en .env}
+      RABBITMQ_DEFAULT_VHOST: detritus
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - internal
 
   auth:
     <<: *service
     command: node src/auth-service.js
+    healthcheck:          # Docker marca el contenedor como "unhealthy" si deja de responder
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     volumes:
       - auth-db:/app/data/db
 
   users:
     <<: *service
     command: node src/users-service.js
+    healthcheck:          # Docker marca el contenedor como "unhealthy" si deja de responder
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     volumes:
       - users-db:/app/data/db
 
   content:
     <<: *service
     command: node src/content-service.js
+    healthcheck:          # Docker marca el contenedor como "unhealthy" si deja de responder
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4003/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     volumes:
       - content-db:/app/data/db
 
   notifications:
     <<: *service
     command: node src/notifications-service.js
-    # Credenciales de correo y WhatsApp: el mismo backend/.env que usa "npm start".
+    healthcheck:          # Docker marca el contenedor como "unhealthy" si deja de responder
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4004/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    # Credenciales de correo y WhatsApp: el mismo backend/.env que usa "npm start" (nunca se sube a GitHub).
     env_file:
       - path: ./backend/.env
         required: false
+    networks:
+      - internal
+      - egress            # necesita internet para enviar correos, SMS y WhatsApp
     volumes:
       - notifications-db:/app/data/db
 
   healthcare:
     <<: *service
     command: node src/healthcare-service.js
+    healthcheck:          # Docker marca el contenedor como "unhealthy" si deja de responder
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4005/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     volumes:
       - healthcare-db:/app/data/db
 
   pqrs:
     <<: *service
     command: node src/pqrs-service.js
+    healthcheck:          # Docker marca el contenedor como "unhealthy" si deja de responder
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4006/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     volumes:
       - pqrs-db:/app/data/db
 
   meds-labs:
     <<: *service
     command: node src/meds-labs-service.js
+    healthcheck:          # Docker marca el contenedor como "unhealthy" si deja de responder
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4007/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     volumes:
       - meds-labs-db:/app/data/db
 
   gateway:
     <<: *service
     command: node src/gateway.js
-    ports:
-      - "4000:4000"
+    healthcheck:          # Docker marca el contenedor como "unhealthy" si deja de responder
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/ping').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    environment:
+      <<: *service-env
+      TRUST_PROXY: "1"                                # la IP real del cliente la pone Nginx
+      PUBLIC_HTTPS: "1"
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://localhost:8443}
+      CAPTCHA_SECRET: ${CAPTCHA_SECRET:-}
+      CAPTCHA_PROVIDER: ${CAPTCHA_PROVIDER:-hcaptcha}
+    networks:
+      - internal
+      - egress            # solo para verificar el CAPTCHA con hCaptcha/reCAPTCHA
     depends_on:
       - auth
       - users
@@ -96,6 +199,12 @@ services:
       - healthcare
       - pqrs
       - meds-labs
+
+networks:
+  edge: {}                # red pública: solo Nginx
+  egress: {}              # salida a internet: notifications y gateway
+  internal:
+    internal: true        # sin salida a internet ni puertos publicados
 
 volumes:
   auth-db:

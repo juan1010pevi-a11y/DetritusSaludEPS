@@ -4,6 +4,7 @@ import Navbar from './Navbar/Navbar';
 import Footer from './Footer/Footer';
 import ChatFab from './ChatFab/ChatFab';
 import LoginModal from './LoginModal/LoginModal';
+import ServiceStatusBanner from './ServiceStatusBanner/ServiceStatusBanner';
 import { useAuth } from '../context/AuthContext';
 
 export default function Layout({ children }) {
@@ -13,6 +14,7 @@ export default function Layout({ children }) {
   return (
     <>
       <Navbar />
+      <ServiceStatusBanner />
       <main>{children}</main>
       <Footer />
       <ChatFab />

@@ -27,6 +27,12 @@ En Windows también puedes hacer doble clic en `backend/start-all.cmd`.
 
 Para comprobar que el backend está bien, abre http://localhost:4000/api/health: todos los servicios deben decir `"ok"`. Si en el inicio de sesión aparece "No hay conexión con el backend", es porque la terminal 1 no está corriendo.
 
+## Documentación, despliegue y tolerancia a fallos
+
+- **Documentación completa:** carpeta [`docs/`](docs/README.md) (definición, requerimientos, instalación y pruebas, arquitectura, modelo de datos, API, seguridad, despliegue y tolerancia a fallos).
+- **Publicar con un link:** Render con `render.yaml` (link permanente) o `publicar.cmd` (link inmediato con Cloudflare Tunnel). Ver [docs/08-despliegue.md](docs/08-despliegue.md).
+- **Apagar un microservicio y que los demás sigan:** Consola del administrador → *Microservicios*, o escribe `detener pqrs` en la ventana del backend. Ver [docs/09-tolerancia-a-fallos.md](docs/09-tolerancia-a-fallos.md).
+
 ## Microservicios y bases de datos
 
 El backend está en `backend/`: un API Gateway (puerto 4000) y 7 microservicios. Cada microservicio tiene **su propia base de datos** (patrón *Database per Service*): ningún servicio lee las tablas de otro; cuando necesita un dato ajeno lo pide por HTTP al dueño o lo recibe por un evento de RabbitMQ.
@@ -42,8 +48,9 @@ El backend está en `backend/`: un API Gateway (puerto 4000) y 7 microservicios.
 | meds-labs | 4007 | `data/db/meds-labs.sqlite` | `data/schemas/meds-labs.sql` | `fact_prescriptions`, `fact_medication_dispensations`, `fact_lab_results`, `fact_lab_result_items` |
 
 - Los archivos `.sqlite` se crean solos al iniciar cada servicio. Para verlos en VS Code abre cualquiera de `backend/data/db/*.sqlite` con la extensión SQLite. Para empezar de cero, borra la carpeta `backend/data/db`.
-- `http://localhost:4000/api/health` muestra el estado de cada servicio y el nombre de su base.
-- Con Docker (`docker compose up --build`) cada servicio monta su propio volumen (`auth-db`, `users-db`, `pqrs-db`…).
+- Con Docker cada servicio monta su propio volumen (`auth-db`, `users-db`, `pqrs-db`…). Antes de `docker compose up --build` copia `.env.example` como `.env` y llena los secretos (`cd backend && npm run generar-secretos`). El sitio queda en **https://localhost:8443** (certificado autofirmado: el navegador pedirá aceptarlo).
+- `http://localhost:4000/api/health` solo muestra el estado de cada servicio; el nombre de cada base se ve enviando la cabecera `x-internal-key`.
+- Seguridad del proyecto (qué se protege y cómo): [SEGURIDAD.md](SEGURIDAD.md).
 - La identidad común es `affiliate_id`: vive en users-service y los demás servicios la guardan como referencia lógica (sin llave foránea entre bases distintas).
 
 Detalle de cada servicio, cuentas de prueba y flujos en [backend/README.md](backend/README.md).
@@ -65,7 +72,7 @@ Cada proceso (citas, reasignaciones por incapacidad, autorizaciones, fórmulas, 
 
 ```bash
 npm test                 # pruebas del frontend (validaciones)
-npm --prefix backend test   # 39 pruebas: unitarias + integración de los 7 microservicios
+npm --prefix backend test   # unitarias, integración, seguridad y tolerancia a fallos
 npm run build            # build de producción
 ```
 

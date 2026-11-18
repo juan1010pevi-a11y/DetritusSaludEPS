@@ -1,0 +1,33 @@
+# Despliegue en Render (https://render.com) con un clic: New → Blueprint → elegir este repositorio.
+# Render construye deploy/Dockerfile y entrega un link público https://<nombre>.onrender.com
+services:
+  - type: web
+    name: detritus-salud-eps
+    runtime: docker
+    plan: free
+    dockerfilePath: ./deploy/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/ping        # solo el gateway: apagar un microservicio NO reinicia el sitio
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Secretos: Render los genera (valor aleatorio de 256 bits en base64) y no quedan en GitHub.
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: INTERNAL_KEY
+        generateValue: true
+      - key: DATA_KEY
+        generateValue: true
+      - key: SEED_DEMO                # cuentas de prueba para la sustentación
+        value: "1"
+      - key: TRUST_PROXY              # Render pone la IP real del visitante en X-Forwarded-For
+        value: "1"
+      - key: PUBLIC_HTTPS
+        value: "1"
+      - key: AUTO_RECOVER_MINUTES     # un servicio apagado desde la consola se enciende solo
+        value: "10"
+      - key: VITE_SHOW_DEMO_ACCOUNTS
+        value: "true"
+      # Opcional (correo real): en Render → Environment agrega SMTP_HOST, SMTP_PORT, SMTP_USER,
+      # SMTP_PASS y MAIL_FROM igual que en backend/.env.example. Sin ellos las notificaciones quedan "Simuladas".

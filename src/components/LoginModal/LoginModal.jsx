@@ -10,6 +10,8 @@ import './LoginModal.css';
 
 // Cuentas académicas de prueba (ver backend/README.md). La contraseña no se muestra:
 // al elegir la cuenta se llena el formulario con la contraseña oculta.
+// Solo aparecen en desarrollo o si se compila con VITE_SHOW_DEMO_ACCOUNTS=true (sustentación).
+const SHOW_DEMO_ACCOUNTS = import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO_ACCOUNTS === 'true';
 const DEMO_ACCOUNTS = {
   affiliate: [{ document: '123456789', password: 'demo123', label: 'Afiliado demo' }],
   doctor: [
@@ -114,11 +116,52 @@ function ForgotPassword({ initialDocument, role, onBack, onDone }) {
   );
 }
 
+/** Segundo paso del ingreso: código de 6 dígitos de la app autenticadora. */
+function MfaStep({ role, mfaToken, onBack, onDone }) {
+  const { verifyMfa } = useAuth();
+  const [code, setCode] = useState('');
+  const [state, setState] = useState({ status: 'idle', message: '' });
+
+  const submit = async event => {
+    event.preventDefault();
+    if (code.length !== 6) { setState({ status: 'error', message: 'El código tiene 6 dígitos.' }); return; }
+    setState({ status: 'loading', message: '' });
+    try {
+      await verifyMfa(mfaToken, code);
+      onDone();
+    } catch (error) {
+      setCode('');
+      setState({ status: 'error', message: error.message });
+    }
+  };
+
+  return (
+    <div className={`login role-${role}`}>
+      <span className="section-label">Verificación en dos pasos</span>
+      <h2 className="login__title">Escribe el código de tu app</h2>
+      <form onSubmit={submit} className="login__form" noValidate>
+        <p className="login__role-help">Abre tu app autenticadora (Google Authenticator, Microsoft Authenticator…) y escribe el código de 6 dígitos de Detritus Salud.</p>
+        <div className="form-group">
+          <label htmlFor="mfa-login-code">Código de verificación</label>
+          <input id="mfa-login-code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="6 dígitos" value={code}
+            onChange={event => setCode(digitsOnly(event.target.value, 6))} required autoFocus />
+        </div>
+        {state.message && <p className="login__error" role="alert">{state.message}</p>}
+        <button className="btn btn--primary login__submit" disabled={state.status === 'loading'}>
+          {state.status === 'loading' ? 'Verificando…' : 'Verificar e ingresar'}
+        </button>
+      </form>
+      <button type="button" className="login__link" onClick={onBack}>← Volver a ingresar</button>
+    </div>
+  );
+}
+
 export default function LoginModal() {
   const { loginModal, closeLogin, login } = useAuth();
   const navigate = useNavigate();
   const [role, setRole] = useState(loginModal?.role || 'affiliate');
-  const [view, setView] = useState('login');
+  const [mfaToken, setMfaToken] = useState(loginModal?.mfaToken || null);
+  const [view, setView] = useState(loginModal?.mfaToken ? 'mfa' : 'login');
   const [form, setForm] = useState({ document: '', password: '' });
   const [state, setState] = useState({ status: 'idle', message: '' });
   const [notice, setNotice] = useState(loginModal?.notice || '');
@@ -130,19 +173,38 @@ export default function LoginModal() {
     if (problem) { setState({ status: 'error', message: problem }); return; }
     setState({ status: 'loading', message: '' });
     try {
-      await login(document, form.password, role);
-      const redirect = loginModal?.redirect;
-      closeLogin();
-      if (redirect) navigate(redirect);
+      const result = await login(document, form.password, role);
+      setForm({ document, password: '' }); // la contraseña no se deja en memoria del formulario
+      if (result?.mfaRequired) {
+        setMfaToken(result.mfaToken);
+        setState({ status: 'idle', message: '' });
+        setView('mfa');
+        return;
+      }
+      finish();
     } catch (error) {
       setState({ status: 'error', message: error.message || 'No fue posible iniciar sesión.' });
     }
   };
 
+  function finish() {
+    const redirect = loginModal?.redirect;
+    closeLogin();
+    if (redirect) navigate(redirect);
+  }
+
   const fillDemo = account => {
     setForm({ document: account.document, password: account.password });
     setState({ status: 'idle', message: '' });
   };
+
+  if (view === 'mfa' && mfaToken) {
+    return (
+      <Modal title="Verificación en dos pasos" onClose={closeLogin}>
+        <MfaStep role={role} mfaToken={mfaToken} onBack={() => { setMfaToken(null); setView('login'); }} onDone={finish} />
+      </Modal>
+    );
+  }
 
   if (view === 'forgot') {
     return (
@@ -205,7 +267,7 @@ export default function LoginModal() {
           <button type="button" className="login__link" onClick={() => { setView('forgot'); setNotice(''); }}>¿Olvidaste tu contraseña?</button>
         </form>
 
-        <details className="login__demo">
+        {SHOW_DEMO_ACCOUNTS && <details className="login__demo">
           <summary>Cuentas de prueba</summary>
           <ul>
             {DEMO_ACCOUNTS[role].map(account => (
@@ -217,7 +279,7 @@ export default function LoginModal() {
               </li>
             ))}
           </ul>
-        </details>
+        </details>}
 
         {role === 'affiliate' && (
           <p className="login__footer">¿Aún no tienes cuenta? <Link to="/tramites/afiliacion-contributivo" onClick={closeLogin}>Regístrate</Link></p>

@@ -1,4 +1,5 @@
 import './env.js'; // primero: credenciales de backend/.env
+import crypto from 'node:crypto';
 import { startService, json, readJson } from './service.js';
 import { publishEvent } from './broker.js';
 import { createDatabase } from './database.js';
@@ -16,7 +17,7 @@ const PQRS_DOCUMENT_TYPES = ['CC', 'CE', 'TI', 'PA', 'PPT'];
 
 function newFilingNumber(year) {
   for (let attempt = 0; attempt < 20; attempt += 1) {
-    const candidate = `PQRS-${year}-${String(Math.floor(100000 + Math.random() * 900000))}`;
+    const candidate = `PQRS-${year}-${crypto.randomInt(100000, 1000000)}`;
     if (!queryOne('SELECT 1 AS found FROM fact_pqrs WHERE pqrs_id = ?', [candidate])) return candidate;
   }
   return `PQRS-${year}-${Date.now().toString().slice(-6)}`;
@@ -51,7 +52,7 @@ startService({
       // Consulta pública: radicado + documento (ambos obligatorios para proteger la información).
       method: 'GET',
       path: '/requests',
-      handler: (req, res, url) => {
+      handler: async (req, res, url) => {
         const id = String(url.searchParams.get('id') || '').trim().toUpperCase();
         const document = String(url.searchParams.get('document') || '').trim();
         if (!id || !document) return json(res, 400, { error: 'Ingresa el número de radicado y el documento con el que radicaste.' });

@@ -1,9 +1,12 @@
 import './env.js'; // primero: credenciales de backend/.env
+import crypto from 'node:crypto';
 import { startService, json, readJson, HttpError } from './service.js';
 import { createDatabase } from './database.js';
-import { hashPassword, verifyPassword } from './security.js';
+import { hashPassword, isPasswordHash, needsRehash, verifyPassword } from './security.js';
 import { addDays, bogotaNow, DOCUMENT_TYPES, isValidDate, RELATIONSHIPS, SPECIALTIES } from './clinical-catalog.js';
-import { getAuthenticatedUser, requireRole } from './auth.js';
+import { requireRole } from './auth.js';
+import { isProduction } from './security/secrets.js';
+import { seal, sealExistingColumns } from './security/crypto-fields.js';
 import { callService, requireInternal, tryCallService } from './internal.js';
 import { publishEvent } from './broker.js';
 import { DEMO_PEOPLE } from './seed-data.js';
@@ -12,12 +15,21 @@ import { documentError, emailError, maskContact, nameError, normalizePhone, pass
 const availableRoles = ['affiliate', 'doctor', 'administrator'];
 const ROLE_PRIORITY = ['affiliate', 'doctor', 'administrator'];
 
+// Versión vigente de la Política de Tratamiento de Datos (Ley 1581 de 2012). Se guarda con cada autorización.
+export const DATA_POLICY_VERSION = '2026-11';
+// Las cuentas de demostración solo se crean fuera de producción (o si se pide con SEED_DEMO=1).
+const seedDemo = !isProduction() || process.env.SEED_DEMO === '1';
+
 const db = await createDatabase('users', {
+  migrate(database) {
+    database.addColumnIfMissing('dim_affiliates', 'data_consent_at', 'TEXT');
+    database.addColumnIfMissing('dim_affiliates', 'data_policy_version', 'TEXT');
+  },
   seed(database) {
     database.execute("INSERT OR IGNORE INTO dim_plans (name, regime) VALUES ('Régimen contributivo', 'contributivo')");
     database.execute("INSERT OR IGNORE INTO dim_plans (name, regime) VALUES ('Régimen subsidiado', 'subsidiado')");
     const plan = database.queryOne("SELECT plan_id FROM dim_plans WHERE name = 'Régimen contributivo'").plan_id;
-    for (const person of DEMO_PEOPLE) {
+    for (const person of seedDemo ? DEMO_PEOPLE : []) {
       if (database.queryOne('SELECT 1 AS ok FROM dim_affiliates WHERE affiliate_id = ?', [person.id])) continue;
       database.execute(
         `INSERT INTO dim_affiliates (affiliate_id, name, document, password, email, phone, whatsapp_opt_in, role, status, plan_id)
@@ -31,13 +43,25 @@ const db = await createDatabase('users', {
 });
 const { queryOne, queryRows, execute } = db;
 
-function requireAdministrator(req, res) {
-  const user = getAuthenticatedUser(req);
-  if (!user || user.role !== 'administrator') {
-    json(res, 403, { error: 'Se requiere un perfil administrador' });
-    return null;
+// Migración: ninguna contraseña puede quedar en texto plano. Si alguna base vieja la tiene, se hashea ya.
+{
+  const plain = db.rawRows('SELECT affiliate_id AS id, password FROM dim_affiliates').filter(row => !isPasswordHash(row.password));
+  if (plain.length) {
+    db.transaction(() => plain.forEach(row => execute('UPDATE dim_affiliates SET password = ? WHERE affiliate_id = ?', [hashPassword(row.password), row.id])));
+    console.warn(`[users] ${plain.length} contraseña(s) en texto plano fueron convertidas a hash.`);
   }
-  return user;
+}
+// Datos personales de alto riesgo cifrados en reposo (AES-256-GCM): dirección, ingreso y grupo SISBÉN.
+const SEALED_COLUMNS = ['address', 'base_income', 'sisben_group'];
+sealExistingColumns(db, { dim_affiliates: SEALED_COLUMNS }, { dim_affiliates: 'affiliate_id' });
+
+// Hash ficticio: si el documento no existe se verifica contra él igual, para que el tiempo de
+// respuesta no revele qué documentos están registrados (enumeración de usuarios).
+const DUMMY_HASH = hashPassword(crypto.randomUUID());
+const newUserId = () => `user-${crypto.randomUUID()}`;
+
+function requireAdministrator(req, res) {
+  return requireRole(req, res, ['administrator']);
 }
 
 const rolesOf = userId => queryRows('SELECT role FROM user_roles WHERE user_id = ?', [userId])
@@ -159,6 +183,7 @@ startService({
       method: 'GET',
       path: '/affiliates/demo',
       handler: (_req, res) => {
+        if (!seedDemo) return json(res, 404, { error: 'Ruta no encontrada' });
         const affiliate = queryOne(
           `SELECT a.affiliate_id AS id, a.document, a.status, p.name AS plan
            FROM dim_affiliates a JOIN dim_plans p ON p.plan_id = a.plan_id WHERE a.affiliate_id = ?`,
@@ -170,9 +195,16 @@ startService({
     },
     {
       method: 'GET',
+      // Perfil completo: SOLO el dueño de la cuenta o un administrador (antes era público).
       path: '/profile',
       handler: (req, res, url) => {
-        const value = url.searchParams.get('affiliateId') || url.searchParams.get('document');
+        const viewer = requireRole(req, res);
+        if (!viewer) return;
+        const value = url.searchParams.get('affiliateId') || url.searchParams.get('document') || viewer.sub;
+        const isOwn = value === viewer.sub || value === viewer.document;
+        if (!isOwn && viewer.role !== 'administrator') {
+          return json(res, 403, { error: 'Solo puedes consultar los datos de tu propia cuenta.' });
+        }
         const profile = queryOne(
           `SELECT a.affiliate_id AS id, a.name, a.document, a.role, a.status, p.name AS plan, a.created_at AS createdAt,
                   a.document_type AS documentType, a.affiliate_type AS affiliateType, a.city, a.department,
@@ -190,14 +222,32 @@ startService({
           [profile.id],
         );
         // Solo el dueño de la cuenta ve sus datos de contacto completos.
-        const viewer = getAuthenticatedUser(req);
-        if (viewer?.sub !== profile.id) {
+        if (viewer.sub !== profile.id) {
           profile.email = maskContact(profile.email);
           profile.phone = maskContact(profile.phone);
           profile.address = null;
         }
         profile.whatsappOptIn = Boolean(profile.whatsappOptIn);
         return json(res, 200, profile);
+      },
+    },
+    {
+      // Consulta PÚBLICA de afiliación: solo dice si el documento está afiliado y en qué régimen.
+      // No devuelve nombre, contacto ni beneficiarios (minimización de datos, Ley 1581).
+      method: 'GET',
+      path: '/affiliation-status',
+      handler: async (req, res, url) => {
+        const document = clean(url.searchParams.get('document'));
+        const problem = documentError(document, /[A-Za-z]/.test(document) ? 'PA' : 'CC');
+        if (problem) return json(res, 400, { error: problem });
+        const row = queryOne(
+          `SELECT a.status, p.regime FROM dim_affiliates a JOIN dim_plans p ON p.plan_id = a.plan_id
+           JOIN user_roles ur ON ur.user_id = a.affiliate_id AND ur.role = 'affiliate'
+           WHERE UPPER(a.document) = UPPER(?)`,
+          [document],
+        );
+        if (!row) return json(res, 200, { found: false });
+        return json(res, 200, { found: true, status: row.status, regime: row.regime, eps: 'Detritus Salud E.P.S.' });
       },
     },
     {
@@ -220,7 +270,7 @@ startService({
         if (problem) return json(res, 400, { error: problem });
         execute(
           'UPDATE dim_affiliates SET name = ?, email = ?, phone = ?, address = ?, whatsapp_opt_in = ? WHERE affiliate_id = ?',
-          [name, email, phone, address || null, whatsapp ? 1 : 0, user.sub],
+          [name, email, phone, seal(address || null), whatsapp ? 1 : 0, user.sub],
         );
         publishEvent('profile.updated', { id: user.sub, affiliateId: user.sub });
         return json(res, 200, { updated: true, id: user.sub, name, email, phone, address, whatsappOptIn: whatsapp });
@@ -364,21 +414,22 @@ startService({
         const name = [data.firstName, data.secondName, data.firstSurname, data.secondSurname].map(clean).filter(Boolean).join(' ');
         const planName = data.regime === 'subsidiado' ? 'Régimen subsidiado' : 'Régimen contributivo';
         const plan = planId(planName, data.regime);
-        const filingNumber = `AFI-${now.date.slice(0, 4)}-${String(Math.floor(100000 + Math.random() * 900000))}`;
+        const filingNumber = `AFI-${now.date.slice(0, 4)}-${crypto.randomInt(100000, 1000000)}`;
         const effectiveDate = addDays(now.date, 1); // los servicios se prestan desde el día siguiente a la afiliación
         const fields = {
           document_type: data.documentType, first_name: clean(data.firstName), second_name: clean(data.secondName) || null,
           first_surname: clean(data.firstSurname), second_surname: clean(data.secondSurname) || null,
           birth_date: data.birthDate, sex: data.sex, department: clean(data.department), city: clean(data.city),
-          zone: data.zone === 'rural' ? 'rural' : 'urbana', address: clean(data.address), neighborhood: clean(data.neighborhood) || null,
+          zone: data.zone === 'rural' ? 'rural' : 'urbana', address: seal(clean(data.address)), neighborhood: clean(data.neighborhood) || null,
           landline: clean(data.landline) || null, email: clean(data.email), phone: normalizePhone(data.phone),
           whatsapp_opt_in: data.whatsappOptIn === false ? 0 : 1,
           affiliate_type: data.regime === 'subsidiado' ? 'cabeza_familia' : data.affiliateType,
           employer_name: clean(data.employerName) || null, employer_nit: clean(data.employerNit).replace(/\D/g, '') || null,
-          base_income: String(data.baseIncome || '').replace(/\D/g, '') || null, economic_activity: clean(data.economicActivity) || null,
-          pension_fund: clean(data.pensionFund) || null, sisben_group: clean(data.sisbenGroup).toUpperCase() || null,
+          base_income: seal(String(data.baseIncome || '').replace(/\D/g, '') || null), economic_activity: clean(data.economicActivity) || null,
+          pension_fund: clean(data.pensionFund) || null, sisben_group: seal(clean(data.sisbenGroup).toUpperCase() || null),
           previous_eps: clean(data.previousEps) || null, primary_ips: clean(data.primaryIps),
           filing_number: filingNumber, effective_date: effectiveDate, plan_id: plan,
+          data_consent_at: now.iso, data_policy_version: DATA_POLICY_VERSION,
         };
 
         const existing = queryOne('SELECT affiliate_id AS id, password FROM dim_affiliates WHERE document = ?', [document]);
@@ -392,7 +443,7 @@ startService({
           affiliateId = existing.id;
           linked = true;
         } else {
-          affiliateId = `user-${Date.now()}`;
+          affiliateId = newUserId();
         }
         db.transaction(() => {
           if (linked) {
@@ -427,6 +478,9 @@ startService({
       path: '/register',
       handler: async (req, res) => {
         const data = await readJson(req);
+        if (data.acceptDataPolicy !== true) {
+          return json(res, 400, { error: 'Debes autorizar el tratamiento de tus datos personales (Ley 1581 de 2012) para crear la cuenta.' });
+        }
         const name = clean(data.name);
         const document = clean(data.document);
         const password = String(data.password || '');
@@ -456,13 +510,14 @@ startService({
         const passwordProblem = passwordError(password);
         if (passwordProblem) return json(res, 400, { error: passwordProblem });
 
-        const affiliateId = `user-${Date.now()}`;
+        const affiliateId = newUserId();
         db.transaction(() => {
           execute(
-            `INSERT INTO dim_affiliates (affiliate_id, name, document, password, email, phone, whatsapp_opt_in, role, status, plan_id)
-             VALUES (?, ?, ?, ?, ?, ?, ?, 'affiliate', 'active', ?)`,
+            `INSERT INTO dim_affiliates (affiliate_id, name, document, password, email, phone, whatsapp_opt_in, role, status, plan_id,
+               data_consent_at, data_policy_version)
+             VALUES (?, ?, ?, ?, ?, ?, ?, 'affiliate', 'active', ?, ?, ?)`,
             [affiliateId, name, document, hashPassword(password), email, phone, data.whatsappOptIn === false ? 0 : 1,
-              planId(planName, data.plan === 'subsidiado' ? 'subsidiado' : 'contributivo')],
+              planId(planName, data.plan === 'subsidiado' ? 'subsidiado' : 'contributivo'), bogotaNow().iso, DATA_POLICY_VERSION],
           );
           execute("INSERT OR IGNORE INTO user_roles (user_id, role) VALUES (?, 'affiliate')", [affiliateId]);
         });
@@ -500,7 +555,10 @@ startService({
           'SELECT affiliate_id AS id, name, document, password, status FROM dim_affiliates WHERE document = ?',
           [clean(document)],
         );
-        if (!user || !verifyPassword(password, user.password)) return json(res, 401, { error: 'Documento o contraseña incorrectos.' });
+        const valid = verifyPassword(password, user?.password || DUMMY_HASH);
+        if (!user || !valid) return json(res, 401, { error: 'Documento o contraseña incorrectos.' });
+        // Hash antiguo (PBKDF2) o de menor costo: se actualiza a scrypt ahora que se conoce la contraseña.
+        if (needsRehash(user.password)) execute('UPDATE dim_affiliates SET password = ? WHERE affiliate_id = ?', [hashPassword(password), user.id]);
         const { password: _hidden, ...safe } = user;
         return json(res, 200, { user: { ...safe, roles: rolesOf(user.id) } });
       },

@@ -4,11 +4,16 @@ import { initials, ROLE_ORDER, ROLES, RoleIcon } from '../../lib/roles';
 import AffiliatePortal from './AffiliatePortal';
 import DoctorPortal from './DoctorPortal';
 import AdminPortal from './AdminPortal';
+import SecurityPanel from './SecurityPanel';
 import './Portal.css';
 
 export default function Portal() {
-  const { user, role, roles, switchRole, openLogin } = useAuth();
+  const { user, role, roles, switchRole, openLogin, ready } = useAuth();
   const [error, setError] = useState('');
+
+  if (!ready) {
+    return <section className="portal-page"><div className="container"><p className="portal-empty">Verificando tu sesión…</p></div></section>;
+  }
 
   if (!user) {
     return (
@@ -67,9 +72,13 @@ export default function Portal() {
       </div>
       <div className="container portal-body">
         {error && <p className="form-status form-status--error">{error}</p>}
+        {user.mfaSetupRequired && (
+          <p className="form-status form-status--error">Tu perfil exige verificación en dos pasos: actívala en “Seguridad de la cuenta” (abajo) para usar las funciones del portal.</p>
+        )}
         {role === 'affiliate' && <AffiliatePortal key={`a-${user.id}`} user={user} />}
         {role === 'doctor' && <DoctorPortal key={`d-${user.id}`} user={user} />}
         {role === 'administrator' && <AdminPortal key={`x-${user.id}`} />}
+        <SecurityPanel role={role} roles={roles} />
       </div>
     </section>
   );

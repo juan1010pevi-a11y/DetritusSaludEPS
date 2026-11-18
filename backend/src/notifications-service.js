@@ -9,6 +9,7 @@ import { renderNotification } from './notification-templates.js';
 import { requireRole } from './auth.js';
 import { peopleById, requireInternal, resolvePerson } from './internal.js';
 import { maskContact, normalizePhone } from './validators.js';
+import { open } from './security/crypto-fields.js';
 
 const db = await createDatabase('notifications');
 const { queryRows, execute } = db;
@@ -35,7 +36,10 @@ function channelsFor(person) {
 }
 
 export async function processEvent(event) {
-  const payload = event.payload || {};
+  const payload = { ...(event.payload || {}) };
+  // Los códigos de verificación llegan cifrados por el bus de eventos; se descifran solo aquí, en memoria.
+  if (payload.codeSealed) payload.code = open(payload.codeSealed);
+  delete payload.codeSealed;
   const person = await recipientFor(payload);
   const message = renderNotification(event.type, payload, person?.name);
   if (!message || !person) return { delivered: 0 };

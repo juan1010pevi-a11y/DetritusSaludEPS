@@ -57,8 +57,10 @@ export default function Home() {
       phone: String(form.get('phone') || '').trim(),
       whatsappOptIn: form.get('whatsapp') === 'on',
       plan: 'contributivo',
+      acceptDataPolicy: form.get('consent') === 'on',
     };
-    const problem = nameError(payload.name) || documentError(payload.document) || emailError(payload.email) || phoneError(payload.phone) || passwordError(payload.password);
+    let problem = nameError(payload.name) || documentError(payload.document) || emailError(payload.email) || phoneError(payload.phone) || passwordError(payload.password);
+    if (!payload.acceptDataPolicy) problem = problem || 'Debes autorizar el tratamiento de tus datos personales para crear la cuenta.';
     if (problem) { setRegisterState({ status: 'error', message: problem }); return; }
     setRegisterState({ status: 'loading', message: '' });
     try {
@@ -186,6 +188,7 @@ export default function Home() {
                     <PasswordHints value={registerPassword} />
                   </div>
                   <label className="portal__optin"><input type="checkbox" name="whatsapp" defaultChecked /> Quiero recibir avisos por WhatsApp además de correo y SMS</label>
+                  <label className="portal__optin"><input type="checkbox" name="consent" required /> Autorizo el tratamiento de mis datos personales y de salud según la <Link to="/politica-datos">Política de Tratamiento de Datos</Link> (Ley 1581 de 2012).</label>
                   <button className="btn btn--primary portal__submit" disabled={registerState.status === 'loading'}>{registerState.status === 'loading' ? 'Creando...' : 'Crear cuenta'}</button>
                 </form>
                 {registerState.message && <p className={`portal__message form-status--${registerState.status}`} role="status">{registerState.message}</p>}

@@ -25,8 +25,10 @@ export default function AfiliacionContributivo() {
       password: form.get('password'),
       whatsappOptIn: form.get('whatsapp') === 'on',
       plan: 'contributivo',
+      acceptDataPolicy: form.get('consent') === 'on',
     };
-    const problem = nameError(payload.name) || documentError(payload.document) || emailError(payload.email) || phoneError(payload.phone) || passwordError(payload.password);
+    let problem = nameError(payload.name) || documentError(payload.document) || emailError(payload.email) || phoneError(payload.phone) || passwordError(payload.password);
+    if (!payload.acceptDataPolicy) problem = problem || 'Debes autorizar el tratamiento de tus datos personales para crear la cuenta.';
     if (problem) { setStatus(problem); return; }
     setStatus('Registrando afiliado...');
     try {
@@ -75,6 +77,7 @@ export default function AfiliacionContributivo() {
               <PasswordHints value={password} />
             </div>
             <label className="consent-check"><input type="checkbox" name="whatsapp" defaultChecked /> <span>Quiero recibir avisos por WhatsApp además de correo y SMS.</span></label>
+            <label className="consent-check"><input type="checkbox" name="consent" required /> <span>Autorizo el tratamiento de mis datos personales y de salud según la <Link to="/politica-datos">Política de Tratamiento de Datos</Link> (Ley 1581 de 2012).</span></label>
             <button className="btn btn--primary" type="submit">Crear cuenta</button>
             {status && <p className="form-status" role="status">{status}</p>}
           </form>

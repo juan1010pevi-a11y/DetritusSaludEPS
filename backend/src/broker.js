@@ -7,7 +7,8 @@ import { callService } from './internal.js';
  * evento se entrega directamente por HTTP a Notifications Service, así ningún aviso
  * por correo, SMS o WhatsApp se pierde.
  */
-const url = process.env.RABBITMQ_URL || 'amqp://detritus:detritus@localhost:5672';
+// Sin usuario/contraseña escritos en el código: en Docker se arma con RABBITMQ_USER/RABBITMQ_PASS.
+const url = process.env.RABBITMQ_URL || 'amqp://localhost:5672';
 const disabled = process.env.RABBITMQ_DISABLED === '1';
 const exchange = 'detritus.events';
 let status = disabled ? 'disabled' : 'disconnected';
@@ -40,8 +41,18 @@ async function getChannel() {
   return channelPromise;
 }
 
+// Los eventos llevan identificadores y datos para el mensaje, NUNCA datos clínicos ni secretos.
+const SENSITIVE_EVENT_KEYS = ['diagnosis', 'diagnosisCode', 'clinicalNotes', 'chiefComplaint', 'currentIllness', 'physicalExam',
+  'background', 'result', 'observations', 'parameters', 'password', 'code', 'token'];
+
+function sanitize(payload) {
+  const clean = { ...(payload || {}) };
+  for (const key of SENSITIVE_EVENT_KEYS) delete clean[key];
+  return clean;
+}
+
 export async function publishEvent(type, payload) {
-  const event = { type, payload, createdAt: new Date().toISOString() };
+  const event = { type, payload: sanitize(payload), createdAt: new Date().toISOString() };
   try {
     const channel = await getChannel();
     channel.publish(exchange, type, Buffer.from(JSON.stringify(event)), { persistent: true });
