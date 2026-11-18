@@ -3,7 +3,7 @@
 #  3) lo sirve con Nginx sin privilegios (usuario nginx, puertos 8080/8443).
 # En producción real, monta tu certificado en /etc/nginx/certs (tls.crt y tls.key).
 
-FROM node:24-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
