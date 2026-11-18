@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "amqplib": "^2.0.1",
-    "sql.js": "^1.14.2"
+    "sql.js": "^1.16.0"
   },
   "engines": {
     "node": ">=22"
