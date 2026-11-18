@@ -19,7 +19,7 @@
     "audit": "npm audit --audit-level=high"
   },
   "dependencies": {
-    "amqplib": "^2.0.1",
+    "amqplib": "^2.3.1",
     "sql.js": "^1.14.2"
   },
   "engines": {
