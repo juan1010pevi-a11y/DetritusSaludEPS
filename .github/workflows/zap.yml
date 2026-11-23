@@ -27,7 +27,7 @@ jobs:
             sleep 5
           done
           docker compose logs; exit 1
-      - uses: zaproxy/action-baseline@v0.14.0
+      - uses: zaproxy/action-baseline@v0.15.0
         with:
           target: https://localhost:8443
           allow_issue_writing: false
