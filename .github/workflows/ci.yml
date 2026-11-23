@@ -64,13 +64,13 @@ jobs:
           RABBITMQ_USER: ci
           RABBITMQ_PASS: ci-password
       # Vulnerabilidades ALTAS o CRÍTICAS en las imágenes construidas.
-      - uses: aquasecurity/trivy-action@0.28.0
+      - uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: detritus-backend
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: '1'
-      - uses: aquasecurity/trivy-action@0.28.0
+      - uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: detritus-frontend
           severity: HIGH,CRITICAL
